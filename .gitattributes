@@ -1,0 +1,27 @@
+# Ensure shell scripts always use LF (required for WSL/Linux execution)
+*.sh        text eol=lf
+
+# Python scripts
+*.py        text eol=lf
+
+# C/C++ source
+*.cpp       text eol=lf
+*.c         text eol=lf
+*.h         text eol=lf
+*.hpp       text eol=lf
+
+# Markdown and config — normalize
+*.md        text eol=lf
+*.json      text eol=lf
+*.js        text eol=lf
+*.jsx       text eol=lf
+*.css       text eol=lf
+*.txt       text eol=lf
+
+# CMake
+CMakeLists.txt  text eol=lf
+
+# Binaries — do not touch
+*.png       binary
+*.jpg       binary
+*.ico       binary

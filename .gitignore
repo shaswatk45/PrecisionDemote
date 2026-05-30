@@ -1,8 +1,31 @@
+# Build artifacts
 node_modules/
 dist/
 build/
+
+# Tool runtime outputs
 uploads/
 outputs/
 *.log
+
+# Analysis JSON outputs (generated, not tracked)
 analysis.json
 result.json
+smoke_test.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.bak
