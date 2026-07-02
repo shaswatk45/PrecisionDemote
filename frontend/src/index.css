@@ -14,9 +14,9 @@
   body {
     @apply bg-surface-900 text-gray-100 font-sans;
     background:
-      linear-gradient(135deg, rgba(239, 68, 68, 0.10), transparent 34%),
-      linear-gradient(225deg, rgba(220, 38, 38, 0.08), transparent 36%),
-      #000000;
+      linear-gradient(135deg, rgba(99, 102, 241, 0.12), transparent 34%),
+      linear-gradient(225deg, rgba(20, 184, 166, 0.08), transparent 36%),
+      #05070d;
     min-height: 100vh;
   }
 

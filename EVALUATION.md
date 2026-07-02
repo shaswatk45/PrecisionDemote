@@ -192,17 +192,22 @@ Verifies that `double` variables are never touched.
 
 ## Overall Accuracy Summary
 
+> These are the actual counts emitted by `validate_tests.py` on a clean LLVM 18
+> build. An earlier revision of this table overstated the totals; see
+> [`AUDIT.md`](AUDIT.md) for the correction (TC5 test-design bug and the
+> previously-skipped `double_only` checks).
+
 | Test Case | Description | Checks | Passed | Accuracy |
 |---|---|---|---|---|
-| TC0 | Primary kernel suite | 18 | 18 | 100% |
-| TC1 | Accumulator detection | 6 | 6 | 100% |
+| TC0 | Primary kernel suite | 19 | 19 | 100% |
+| TC1 | Accumulator detection | 4 | 4 | 100% |
 | TC2 | Division blocking | 6 | 6 | 100% |
 | TC3 | Depth limiting | 6 | 6 | 100% |
-| TC4 | Simple safe demotion | 11 | 11 | 100% |
-| TC5 | Fan-in limiting | 8 | 8 | 100% |
-| TC6 | Realistic mixed kernel | 10 | 10 | 100% |
-| TC7 | Double type exclusion | 8 | 8 | 100% |
-| **TOTAL** | | **73** | **73** | **100%** |
+| TC4 | Simple safe demotion | 9 | 9 | 100% |
+| TC5 | Fan-in limiting | 7 | 7 | 100% |
+| TC6 | Realistic mixed kernel | 3 | 3 | 100% |
+| TC7 | Double type exclusion | 6 | 6 | 100% |
+| **TOTAL** | | **60** | **60** | **100%** |
 
 ---
 

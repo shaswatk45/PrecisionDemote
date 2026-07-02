@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { reasonLabel } from '../lib/blockReason'
 
 const SORT_OPTIONS = [
   { key: 'name', label: 'Name' },
@@ -11,6 +12,7 @@ const SORT_OPTIONS = [
 export default function NodeTable({ analysis }) {
   const [sort, setSort] = useState({ key: 'isSafe', dir: -1 })
   const [filter, setFilter] = useState('all')
+  const thresholds = analysis.thresholds || { maxDepth: 3, maxFanIn: 5 }
   const allNodes = analysis.functions.flatMap(f => f.nodes.map(n => ({ ...n, func: f.name })))
 
   const filtered = allNodes.filter(n => {
@@ -29,15 +31,6 @@ export default function NodeTable({ analysis }) {
 
   const toggleSort = (key) => {
     setSort(prev => prev.key === key ? { key, dir: -prev.dir } : { key, dir: -1 })
-  }
-
-  const getBlockReason = (node) => {
-    if (node.isSafe) return null
-    if (node.isAccumulator) return 'Accumulator'
-    if (node.hasDivision) return 'Division chain'
-    if (node.depth > 3) return `Depth ${node.depth} > 3`
-    if (node.dependencyCount > 5) return `Fan-in ${node.dependencyCount} > 5`
-    return 'Type mismatch'
   }
 
   return (
@@ -79,7 +72,7 @@ export default function NodeTable({ analysis }) {
           </thead>
           <tbody className="divide-y divide-white/5">
             {sorted.map((node, i) => {
-              const reason = getBlockReason(node)
+              const reason = reasonLabel(node, thresholds)
               return (
                 <motion.tr
                   key={`${node.func}-${node.name}-${i}`}

@@ -132,7 +132,14 @@ export default function AnalysisPage() {
               className="flex-1 bg-transparent font-mono text-sm text-gray-200 p-4 resize-none outline-none leading-relaxed placeholder:text-gray-600"
               value={code}
               onChange={e => setCode(e.target.value)}
+              onKeyDown={e => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                  e.preventDefault()
+                  if (!loading) analyze()
+                }
+              }}
               placeholder="Paste your C/C++ code here..."
+              aria-label="C/C++ source code input"
               spellCheck={false}
             />
           ) : (
@@ -158,9 +165,9 @@ export default function AnalysisPage() {
           <div className="glass p-5 space-y-3">
             <p className="section-title mb-2">Heuristic thresholds</p>
             {[
-              { label: 'Max arithmetic depth', val: '<= 3' },
+              { label: 'Max arithmetic depth', val: `<= ${health?.thresholds?.maxDepth ?? 3}` },
               { label: 'Division allowed', val: 'No' },
-              { label: 'Max dependency fan-in', val: '<= 5' },
+              { label: 'Max dependency fan-in', val: `<= ${health?.thresholds?.maxFanIn ?? 5}` },
               { label: 'Target type', val: 'plain float' },
             ].map(({ label, val }) => (
               <div key={label} className="flex justify-between text-sm">
@@ -184,7 +191,10 @@ export default function AnalysisPage() {
                 Analyzing...
               </>
             ) : (
-              'Run Precision Analysis'
+              <>
+                Run Precision Analysis
+                <kbd className="hidden sm:inline text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/30 border border-white/20 text-gray-300">Ctrl↵</kbd>
+              </>
             )}
           </motion.button>
 

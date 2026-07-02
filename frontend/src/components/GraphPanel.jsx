@@ -3,6 +3,7 @@ import { ReactFlow, useNodesState, useEdgesState, Background, Controls } from '@
 import '@xyflow/react/dist/style.css'
 import { motion, AnimatePresence } from 'framer-motion'
 import dagre from 'dagre'
+import { reasonLabel } from '../lib/blockReason'
 
 function CustomNode({ data }) {
   const safe = data.isSafe
@@ -46,6 +47,7 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 }
 
 export default function GraphPanel({ analysis }) {
+  const thresholds = analysis.thresholds || { maxDepth: 3, maxFanIn: 5 }
   const [selected, setSelected] = useState(null)
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
@@ -72,7 +74,7 @@ export default function GraphPanel({ analysis }) {
           source: `${fn.name}-${edge.from}`,
           target: `${fn.name}-${edge.to}`,
           animated: true,
-          style: { stroke: 'rgba(239,68,68,0.4)', strokeWidth: 2 }
+          style: { stroke: 'rgba(99,102,241,0.45)', strokeWidth: 2 }
         })
       })
     })
@@ -118,7 +120,7 @@ export default function GraphPanel({ analysis }) {
           className="bg-surface-900/30"
           minZoom={0.1}
         >
-          <Background color="#ef4444" gap={24} size={1} opacity={0.15} />
+          <Background color="#6366f1" gap={24} size={1} opacity={0.15} />
           <Controls className="fill-white text-black" style={{ background: 'rgba(0,0,0,0.5)' }} />
         </ReactFlow>
       </div>
@@ -158,7 +160,9 @@ export default function GraphPanel({ analysis }) {
               ))}
             </div>
             <div className={`mt-4 text-[11px] p-3 rounded-lg ${selected.isSafe ? 'bg-safe/10 text-safe' : 'bg-unsafe/10 text-unsafe'}`}>
-              {selected.isSafe ? 'Passed all checks: depth <= 3, no division, fan-in <= 5, not accumulator.' : `Blocked. Accumulator: ${selected.isAccumulator}, Div: ${selected.hasDivision}`}
+              {selected.isSafe
+                ? `Passed all checks: depth <= ${thresholds.maxDepth}, no division, fan-in <= ${thresholds.maxFanIn}, not accumulator.`
+                : `Kept at float — ${reasonLabel(selected, thresholds)}.`}
             </div>
           </motion.div>
         )}

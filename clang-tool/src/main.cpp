@@ -48,6 +48,10 @@
 using namespace clang;
 using namespace clang::tooling;
 
+/// Tool version — bumped for the v2.0 analysis overhaul (blockReason reporting,
+/// double-type tracking, self-describing JSON schema).
+#define PD_VERSION "2.0.0"
+
 ///=== CLI Options ============================================================
 static llvm::cl::OptionCategory ToolCat("precision-demote options");
 
@@ -84,6 +88,7 @@ struct FPNode {
     int         depCount = 0;   // number of float operand deps
     bool        isAccumulator = false; // detected +=, -=, etc.
     bool        isSafe = false; // heuristic verdict
+    std::string blockReason;    // "" if safe, else the first rule that blocked it
     SourceRange typeRange;      // range of the type token for rewriting
     std::vector<std::string> deps; // names of float vars this depends on
 };
@@ -202,22 +207,28 @@ static void collectVarRefs(const Expr *E, std::vector<std::string> &out,
 
 ///=== Heuristic Engine =======================================================
 
+/// Evaluate the 5 safety rules in priority order and record the *first* rule
+/// that blocks demotion in node.blockReason ("" means safe). Returns the safe
+/// verdict. Centralising the reason here makes the analyzer the single source
+/// of truth — the UI no longer has to re-derive why a variable was kept.
 static bool evaluateHeuristics(FPNode &node, int maxDepth, int maxFanIn) {
     // Rule 1: type must be plain float (not double, not pointer)
-    if (node.qualType != "float") return false;
+    if (node.qualType != "float") { node.blockReason = "type"; return false; }
 
     // Rule 2: accumulator variables are not safe
-    if (node.isAccumulator) return false;
+    if (node.isAccumulator) { node.blockReason = "accumulator"; return false; }
+
+    // Rule 4: no division in chain (reported before depth: a division anywhere
+    // in the chain is the more fundamental numerical hazard)
+    if (node.hasDivision) { node.blockReason = "division"; return false; }
 
     // Rule 3: arithmetic depth within limit
-    if (node.depth > maxDepth) return false;
-
-    // Rule 4: no division in chain
-    if (node.hasDivision) return false;
+    if (node.depth > maxDepth) { node.blockReason = "depth"; return false; }
 
     // Rule 5: dependency fan-in within limit
-    if (node.depCount > maxFanIn) return false;
+    if (node.depCount > maxFanIn) { node.blockReason = "fan-in"; return false; }
 
+    node.blockReason.clear();
     return true;
 }
 
@@ -238,8 +249,10 @@ public:
         // ── Pass 1: collect all float VarDecls in this function ────────
         std::set<std::string> floatVarNames;
         std::vector<VarDecl *> floatVars;
+        std::vector<VarDecl *> doubleVars;
 
-        collectFloatVarsInStmt(FD->getBody(), floatVarNames, floatVars);
+        collectFloatVarsInStmt(FD->getBody(), floatVarNames, floatVars,
+                               doubleVars);
 
         // ── Pass 2: detect accumulation (+=, -=, *=, /=) ──────────────
         std::set<std::string> accumulators;
@@ -307,6 +320,18 @@ public:
             fr.nodes.push_back(std::move(node));
         }
 
+        // ── Double locals: reported as type-blocked, never demoted ─────
+        for (VarDecl *VD : doubleVars) {
+            FPNode node;
+            node.name = VD->getNameAsString();
+            node.qualType = VD->getType().getUnqualifiedType().getAsString();
+            node.line = SM_.getSpellingLineNumber(VD->getLocation());
+            node.col  = SM_.getSpellingColumnNumber(VD->getLocation());
+            node.isSafe = false;
+            node.blockReason = "type"; // Rule 1: only FP32 is in scope
+            fr.nodes.push_back(std::move(node));
+        }
+
         // Tally
         fr.totalFloatVars = (int)fr.nodes.size();
         fr.safeToDemote = 0;
@@ -323,10 +348,15 @@ private:
     ASTContext    &Ctx_;
     SourceManager &SM_;
 
-    /// Recursively collect all local float VarDecls inside a Stmt.
+    /// Recursively collect local floating-point VarDecls inside a Stmt.
+    /// Plain `float` scalars go into (names, vars) and drive the dependency
+    /// graph. `double` scalars are collected separately so they can be surfaced
+    /// in the report as type-blocked (never demoted), without polluting the
+    /// float dependency analysis.
     void collectFloatVarsInStmt(Stmt *S,
                                 std::set<std::string> &names,
-                                std::vector<VarDecl *> &vars) {
+                                std::vector<VarDecl *> &vars,
+                                std::vector<VarDecl *> &doubleVars) {
         if (!S) return;
 
         if (auto *DS = dyn_cast<DeclStmt>(S)) {
@@ -334,20 +364,22 @@ private:
                 if (auto *VD = dyn_cast<VarDecl>(D)) {
                     if (!VD->hasLocalStorage()) continue;
                     QualType QT = VD->getType();
-                    // Only plain scalar float — skip double, pointers, arrays
+                    // Scalars only — skip pointers, arrays, references
                     if (!QT->isFloatingType()) continue;
                     if (QT->isPointerType() || QT->isArrayType()) continue;
                     std::string ts = QT.getUnqualifiedType().getAsString();
-                    if (ts != "float") continue;
-
-                    names.insert(VD->getNameAsString());
-                    vars.push_back(VD);
+                    if (ts == "float") {
+                        names.insert(VD->getNameAsString());
+                        vars.push_back(VD);
+                    } else if (ts == "double") {
+                        doubleVars.push_back(VD);
+                    }
                 }
             }
         }
 
         for (Stmt *Child : S->children())
-            if (Child) collectFloatVarsInStmt(Child, names, vars);
+            if (Child) collectFloatVarsInStmt(Child, names, vars, doubleVars);
     }
 
     /// Detect which float vars are used as accumulation targets (+=, -=, etc.)
@@ -458,7 +490,7 @@ static void writeJSON(const std::string &Path) {
         llvm::json::Object FObj;
         FObj["name"]           = fr.name;
         FObj["totalFloatVars"] = fr.totalFloatVars;
-        FObj["safeTodemote"]   = fr.safeToDemote;
+        FObj["safeToDemote"]   = fr.safeToDemote;
 
         llvm::json::Array NodesArr;
         for (auto &n : fr.nodes) {
@@ -470,6 +502,7 @@ static void writeJSON(const std::string &Path) {
             NObj["dependencyCount"] = n.depCount;
             NObj["isAccumulator"]   = n.isAccumulator;
             NObj["isSafe"]          = n.isSafe;
+            NObj["blockReason"]     = n.blockReason;
             NObj["line"]            = (int)n.line;
             NObj["col"]             = (int)n.col;
 
@@ -498,6 +531,15 @@ static void writeJSON(const std::string &Path) {
     Root["rewrittenSource"]= GRewrittenSource;
     Root["dryRun"]         = DryRun.getValue();
 
+    // Self-describing metadata: lets consumers (backend/UI) render the exact
+    // thresholds a report was produced with instead of hard-coding "3" / "5".
+    Root["toolVersion"]    = PD_VERSION;
+    Root["engine"]         = "clang-ast";
+    llvm::json::Object Thresholds;
+    Thresholds["maxDepth"]  = MaxDepth.getValue();
+    Thresholds["maxFanIn"]  = MaxFanIn.getValue();
+    Root["thresholds"]      = std::move(Thresholds);
+
     std::error_code EC;
     llvm::raw_fd_ostream OS(Path, EC);
     if (EC) {
@@ -513,6 +555,8 @@ static void writeJSON(const std::string &Path) {
         totalV += fr.totalFloatVars;
         totalS += fr.safeToDemote;
     }
+    llvm::errs() << "[precision-demote] Version:            "
+                 << PD_VERSION << "\n";
     llvm::errs() << "[precision-demote] Functions analyzed: "
                  << GResults.size() << "\n";
     llvm::errs() << "[precision-demote] Float variables:    "

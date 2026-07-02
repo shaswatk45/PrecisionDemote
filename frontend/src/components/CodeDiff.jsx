@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import toast from 'react-hot-toast'
 
 function highlightFP16Lines(code) {
   return code.split('\n').reduce((acc, line, idx) => {
@@ -47,6 +48,28 @@ export default function CodeDiff({ original, rewritten }) {
   const changed = original !== rewritten
   const fp16Count = (rewritten.match(/__fp16/g) || []).length
 
+  const copyRewritten = async () => {
+    try {
+      await navigator.clipboard.writeText(rewritten)
+      toast.success('Rewritten source copied')
+    } catch {
+      toast.error('Clipboard not available')
+    }
+  }
+
+  const downloadRewritten = () => {
+    const blob = new Blob([rewritten], { type: 'text/x-c++src' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'rewritten.fp16.cpp'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+    toast.success('Downloaded rewritten.fp16.cpp')
+  }
+
   return (
     <div className="glass overflow-hidden flex flex-col">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 flex-wrap">
@@ -72,6 +95,21 @@ export default function CodeDiff({ original, rewritten }) {
               {label}
             </button>
           ))}
+          <div className="w-px bg-white/10 mx-1" aria-hidden="true" />
+          <button
+            onClick={copyRewritten}
+            aria-label="Copy rewritten source to clipboard"
+            className="text-xs px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+          >
+            Copy
+          </button>
+          <button
+            onClick={downloadRewritten}
+            aria-label="Download rewritten source file"
+            className="text-xs px-3 py-1.5 rounded-lg bg-safe/15 text-safe border border-safe/30 hover:bg-safe/25 transition-all"
+          >
+            Download
+          </button>
         </div>
       </div>
 

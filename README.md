@@ -260,19 +260,26 @@ float  inv  = 1.0f / norm;
 
 ## 📊 Test Results
 
+Numbers below are the **actual, reproducible** output of
+`python3 tests/validate_tests.py clang-tool/build/precision-demote` on a clean
+build (LLVM 18.1.3). See [`AUDIT.md`](AUDIT.md) for the v2.0 audit that corrected
+an earlier, overstated "73/73" claim and the TC5 test-design bug behind it.
+
 ### Summary
 
 | Test Case | Description | Checks | Result |
 |---|---|---|---|
-| **TC0** — `test_kernels.cpp` | Primary 6-function suite | 18/18 | ✅ 100% |
-| **TC1** — `tc_accumulator.cpp` | `+=` and `*=` detection | 6/6 | ✅ 100% |
+| **TC0** — `test_kernels.cpp` | Primary 6-function suite | 19/19 | ✅ 100% |
+| **TC1** — `tc_accumulator.cpp` | `+=` and `*=` detection | 4/4 | ✅ 100% |
 | **TC2** — `tc_division.cpp` | Direct + inherited division | 6/6 | ✅ 100% |
 | **TC3** — `tc_depth.cpp` | Depth boundary at exactly 3 | 6/6 | ✅ 100% |
-| **TC4** — `tc_simple.cpp` | Positive: all safe (no over-blocking) | 11/11 | ✅ 100% |
-| **TC5** — `tc_fanin.cpp` | Fan-in boundary at exactly 5 | 8/8 | ✅ 100% |
-| **TC6** — `tc_mixed.cpp` | Realistic layer-norm kernel | 10/10 | ✅ 100% |
-| **TC7** — `tc_double.cpp` | `double` type never demoted | 8/8 | ✅ 100% |
-| **TOTAL** | | **73/73** | ✅ **100%** |
+| **TC4** — `tc_simple.cpp` | Positive: all safe (no over-blocking) | 9/9 | ✅ 100% |
+| **TC5** — `tc_fanin.cpp` | Fan-in boundary at exactly 5 (isolated from depth) | 7/7 | ✅ 100% |
+| **TC6** — `tc_mixed.cpp` | Realistic layer-norm kernel | 3/3 | ✅ 100% |
+| **TC7** — `tc_double.cpp` | `double` type never demoted (now actually checked) | 6/6 | ✅ 100% |
+| **TOTAL** | | **60/60** | ✅ **100%** |
+
+Plus **9/9** backend analyzer unit tests (`cd backend && npm test`).
 
 ### Baseline Comparison
 
@@ -333,7 +340,7 @@ PrecisionDemote/
     ├── tc_fanin.cpp            ← TC5: fan-in limit
     ├── tc_mixed.cpp            ← TC6: realistic mixed kernel
     ├── tc_double.cpp           ← TC7: double type exclusion
-    ├── validate_tests.py       ← Automated validator (73 checks)
+    ├── validate_tests.py       ← Automated validator (60 checks)
     ├── expected_output.cpp     ← Reference rewritten output
     └── analysis_result.json    ← Pre-computed analysis output
 ```
@@ -359,6 +366,8 @@ PrecisionDemote/
 | [`DESIGN.md`](DESIGN.md) | Problem statement, design decisions, alternatives rejected |
 | [`IMPLEMENTATION.md`](IMPLEMENTATION.md) | LLVM/Clang API walkthrough, algorithm, JSON schema |
 | [`EVALUATION.md`](EVALUATION.md) | Full test tables, baseline comparison, failure cases |
+| [`AUDIT.md`](AUDIT.md) | v2.0 audit: findings, fixes, and how to reproduce them |
+| [`CHANGELOG.md`](CHANGELOG.md) | Release notes |
 
 ---
 
