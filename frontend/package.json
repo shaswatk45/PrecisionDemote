@@ -1,6 +1,6 @@
 {
   "name": "precision-demote-frontend",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
   "private": true,
   "scripts": {
@@ -9,10 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
     "@xyflow/react": "^12.10.2",
     "axios": "^1.4.0",
     "dagre": "^0.8.5",
     "framer-motion": "^10.16.0",
+    "monaco-editor": "^0.52.2",
     "react": "^18.2.0",
     "react-diff-viewer-continued": "^3.4.0",
     "react-dom": "^18.2.0",

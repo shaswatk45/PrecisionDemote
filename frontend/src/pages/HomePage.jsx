@@ -35,17 +35,18 @@ export default function HomePage() {
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-safe/10 border border-safe/30 text-safe text-sm font-medium">
             <span className="w-2 h-2 rounded-full bg-safe animate-pulse-slow" />
-            Real Clang AST analysis for FP32 to FP16 demotion
+            Clang AST mixed-precision analysis · FP32 → FP16 / BF16
           </div>
 
           <div className="space-y-5">
             <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight">
               Precision-Aware
-              <span className="block text-gradient">Type Demotion</span>
+              <span className="block text-gradient">Mixed-Precision Demotion</span>
             </h1>
             <p className="text-lg text-gray-400 max-w-2xl">
-              Analyze numerical C/C++ kernels, find float variables that are safe to demote,
-              and inspect every decision before accepting the rewritten source.
+              Statically analyze numerical C/C++ kernels, score every float variable for
+              demotion safety, quantify the FP16/BF16 rounding error, and rewrite to the
+              optimal narrow type — all inspectable before you accept a single change.
             </p>
           </div>
 
@@ -98,10 +99,10 @@ export default function HomePage() {
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { val: 'AST', label: 'analysis engine' },
-          { val: '5', label: 'safety rules' },
-          { val: 'FP16', label: 'rewrite target' },
-          { val: 'JSON', label: 'inspection output' },
+          { val: '6', label: 'safety rules' },
+          { val: '0-100', label: 'per-var score' },
+          { val: 'FP16/BF16', label: 'mixed targets' },
+          { val: 'SARIF', label: 'export format' },
         ].map(({ val, label }, i) => (
           <motion.div
             key={label}

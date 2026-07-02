@@ -4,13 +4,14 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
-    chunkSizeWarningLimit: 700,
+    chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
         manualChunks: {
           charts: ['recharts'],
           syntax: ['react-syntax-highlighter'],
           motion: ['framer-motion'],
+          monaco: ['monaco-editor', '@monaco-editor/react'],
         },
       },
     },

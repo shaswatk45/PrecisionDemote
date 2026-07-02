@@ -1,6 +1,6 @@
 {
   "name": "precision-demote-backend",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Backend for Precision-Aware Type Demotion Tool",
   "main": "server.js",
   "scripts": {

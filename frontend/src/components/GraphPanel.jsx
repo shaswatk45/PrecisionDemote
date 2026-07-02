@@ -5,12 +5,18 @@ import { motion, AnimatePresence } from 'framer-motion'
 import dagre from 'dagre'
 import { reasonLabel } from '../lib/blockReason'
 
+const REC_STYLE = {
+  __fp16: 'border-safe/50 text-safe shadow-glow-safe',
+  __bf16: 'border-warn/50 text-warn',
+  float:  'border-unsafe/50 text-unsafe shadow-glow-unsafe',
+}
+
 function CustomNode({ data }) {
-  const safe = data.isSafe
+  const rec = data.recommendedType || (data.isSafe ? '__fp16' : 'float')
   return (
-    <div className={`px-3 py-2 rounded-lg text-xs font-mono border transition-all duration-200 shadow-lg bg-surface-900 ${safe ? 'border-safe/40 text-safe shadow-glow-safe' : 'border-unsafe/40 text-unsafe shadow-glow-unsafe'} ${data.selected ? 'ring-2 ring-white/60 scale-105' : ''}`}>
+    <div className={`px-3 py-2 rounded-lg text-xs font-mono border transition-all duration-200 shadow-lg bg-surface-900 ${REC_STYLE[rec]} ${data.selected ? 'ring-2 ring-white/60 scale-105' : ''}`}>
       <div className="font-semibold text-center">{data.name}</div>
-      <div className="text-[10px] opacity-70 mt-0.5 text-center">depth:{data.depth} deps:{data.dependencyCount}</div>
+      <div className="text-[10px] opacity-70 mt-0.5 text-center">{rec} · score {data.safetyScore ?? '-'}</div>
     </div>
   )
 }
@@ -93,8 +99,10 @@ export default function GraphPanel({ analysis }) {
   }, [setNodes])
 
   const allNodes = analysis.functions.flatMap(f => f.nodes.map(n => ({ ...n, func: f.name })))
-  const safeNodes = allNodes.filter(n => n.isSafe)
-  const unsafeNodes = allNodes.filter(n => !n.isSafe)
+  const recOf = (n) => n.recommendedType || (n.isSafe ? '__fp16' : 'float')
+  const fp16Nodes = allNodes.filter(n => recOf(n) === '__fp16')
+  const bf16Nodes = allNodes.filter(n => recOf(n) === '__bf16')
+  const keptNodes = allNodes.filter(n => recOf(n) === 'float')
 
   return (
     <motion.div 
@@ -104,8 +112,9 @@ export default function GraphPanel({ analysis }) {
     >
       <div className="flex items-center gap-4 flex-wrap p-4 z-10 absolute top-0 left-0 right-0 pointer-events-none">
         <p className="section-title mb-0">Dependency Graph</p>
-        <span className="tag-safe pointer-events-auto">{safeNodes.length} safe</span>
-        <span className="tag-unsafe pointer-events-auto">{unsafeNodes.length} blocked</span>
+        <span className="tag-safe pointer-events-auto">{fp16Nodes.length} __fp16</span>
+        <span className="pointer-events-auto inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold" style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}>{bf16Nodes.length} __bf16</span>
+        <span className="tag-unsafe pointer-events-auto">{keptNodes.length} kept</span>
       </div>
 
       <div className="flex-1 w-full h-full rounded-lg overflow-hidden">
@@ -142,8 +151,14 @@ export default function GraphPanel({ analysis }) {
               }} className="ml-auto text-gray-500 hover:text-white text-lg px-2">✕</button>
             </div>
 
-            <div className="mb-4">
-               {selected.isSafe ? <span className="tag-safe">Safe {'->'} __fp16</span> : <span className="tag-unsafe">Keep float</span>}
+            <div className="mb-4 flex items-center gap-2">
+              {(() => {
+                const rec = selected.recommendedType || (selected.isSafe ? '__fp16' : 'float')
+                if (rec === '__fp16') return <span className="tag-safe">demote → __fp16</span>
+                if (rec === '__bf16') return <span className="tag-unsafe" style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b', borderColor: 'rgba(245,158,11,0.3)' }}>demote → __bf16</span>
+                return <span className="tag-unsafe">keep float</span>
+              })()}
+              <span className="ml-auto font-mono text-xs text-gray-400">score {selected.safetyScore ?? '-'}/100</span>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-sm mt-4">
@@ -151,7 +166,9 @@ export default function GraphPanel({ analysis }) {
                 ['Type', selected.type],
                 ['Depth', selected.depth],
                 ['Deps', selected.dependencyCount],
+                ['Rel. err', selected.errorBound ? `${(selected.errorBound * 100).toFixed(3)}%` : '0%'],
                 ['Line', selected.line ? `L${selected.line}` : '-'],
+                ['Max mag', selected.maxMagnitude > 0 ? Number(selected.maxMagnitude).toPrecision(3) : '—'],
               ].map(([label, val]) => (
                 <div key={label} className="bg-white/5 p-2 rounded">
                   <div className="text-[10px] text-gray-400 uppercase">{label}</div>

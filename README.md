@@ -2,7 +2,7 @@
 
 # 🔬 PrecisionDemote
 
-### Automatic FP32 → FP16 Precision Demotion via Clang LibTooling
+### Automatic FP32 → FP16 / BF16 Mixed-Precision Demotion via Clang LibTooling
 
 [![LLVM](https://img.shields.io/badge/LLVM-18.x-blue?logo=llvm&logoColor=white)](https://llvm.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -13,15 +13,17 @@
 
 <br/>
 
-> A real **Clang AST-based** compiler tool that statically analyzes C/C++ floating-point computation chains and **automatically rewrites** safe `float` (FP32) variables to `__fp16` (FP16) — enabling mixed-precision optimization for AI/HPC workloads without manual effort.
+> A real **Clang AST-based** compiler tool that statically analyzes C/C++ floating-point computation chains, **scores every variable** for demotion safety, **quantifies the rounding error**, and **automatically rewrites** each safe `float` to its optimal narrow type — `__fp16` (half) or `__bf16` (bfloat16) — enabling mixed-precision optimization for AI/HPC workloads without manual effort.
+
+> **New in v3.0:** per-variable safety scoring (0–100), static FP16/BF16 error-bound propagation, range/overflow analysis (Rule 6), mixed `__fp16`/`__bf16` rewriting, a Monaco-based analysis IDE with an annotated source view, and SARIF 2.1.0 export. See [`CHANGELOG.md`](CHANGELOG.md).
 
 <br/>
 
 ```
-float ai   = a[i];      →     __fp16 ai   = a[i];
-float bi   = b[i];      →     __fp16 bi   = b[i];
-float prod = ai * bi;   →     __fp16 prod = ai * bi;
-float sum  = 0.0f;      →     float  sum  = 0.0f;   // accumulator — kept
+float ai   = a[i];      →     __fp16 ai   = a[i];      // score 100, err ~4.9e-4
+float prod = ai * bi;   →     __fp16 prod = ai * bi;   // score 92
+float gain = 70000.0f;  →     __bf16 gain = 70000.0f;  // > FP16 max → BF16 range
+float sum  = 0.0f;      →     float  sum  = 0.0f;      // accumulator — kept
 ```
 
 </div>
@@ -228,15 +230,31 @@ Examples:
 
 ## 🧠 Heuristic Rules
 
-A variable is demoted **only if all 5 rules pass**. When in doubt, the tool keeps `float`.
+A variable is safe for **`__fp16`** only if all 6 rules pass. When only the range
+rule (6) fails, the tool recommends **`__bf16`** instead — BF16 shares FP32's
+exponent range, so it fixes overflow without the other precision hazards. When in
+doubt, the tool keeps `float`.
 
 | # | Rule | Condition | Rationale |
 |---|---|---|---|
-| 1 | **Type check** | Must be `float` (not `double`) | Only FP32→FP16 is in scope |
+| 1 | **Type check** | Must be `float` (not `double`) | Only FP32 is in scope |
 | 2 | **Accumulator check** | No `+=` / `-=` / `*=` / `/=` | Accumulation amplifies error over N iterations |
 | 3 | **Depth limit** | Arithmetic chain depth ≤ `--max-depth` (3) | Deep chains compound rounding error |
 | 4 | **Division check** | No `/` or `%` anywhere in dependency chain | FP16 division has poor precision near zero |
 | 5 | **Fan-in limit** | ≤ `--max-fan-in` (5) float variable dependencies | High fan-in risks correlated errors |
+| 6 | **Range check** | Known constant magnitude ≤ FP16 max (65504) | FP16 overflows early; BF16 rescues *range* |
+
+### Numerical model (v3.0)
+
+Beyond the pass/fail verdict, every variable gets:
+
+- **Safety score (0–100)** — a graded confidence penalising accumulation,
+  division, depth, fan-in, and overflow, used for ranking and the heatmap.
+- **Error bound** — a first-order estimate of the relative rounding error a
+  demotion introduces: `(depth + 1) × u`, where `u` is the target's unit
+  roundoff (FP16 ≈ 4.9 × 10⁻⁴, BF16 ≈ 3.9 × 10⁻³).
+- **Recommended type** — `__fp16` (precision- and range-safe), `__bf16` (only
+  FP16 *range* fails), or `float` (a precision hazard BF16 can't fix).
 
 ### Example
 
@@ -277,7 +295,10 @@ an earlier, overstated "73/73" claim and the TC5 test-design bug behind it.
 | **TC5** — `tc_fanin.cpp` | Fan-in boundary at exactly 5 (isolated from depth) | 7/7 | ✅ 100% |
 | **TC6** — `tc_mixed.cpp` | Realistic layer-norm kernel | 3/3 | ✅ 100% |
 | **TC7** — `tc_double.cpp` | `double` type never demoted (now actually checked) | 6/6 | ✅ 100% |
-| **TOTAL** | | **60/60** | ✅ **100%** |
+| **TC8** — `tc_overflow.cpp` | FP16 overflow (Rule 6) → recommend `__bf16` | 8/8 | ✅ 100% |
+| **TOTAL** | | **68/68** | ✅ **100%** |
+
+Plus **14/14** backend analyzer unit tests (`cd backend && npm test`).
 
 Plus **9/9** backend analyzer unit tests (`cd backend && npm test`).
 
@@ -351,11 +372,11 @@ PrecisionDemote/
 
 | Layer | Stack |
 |---|---|
-| **Core Engine** | LLVM 18, Clang LibTooling, `RecursiveASTVisitor`, `clang::Rewriter` |
+| **Core Engine** | LLVM 18, Clang LibTooling, `RecursiveASTVisitor`, `clang::Rewriter`, `llvm::APFloat` |
 | **Build** | CMake 3.16+, GCC/Clang, WSL Ubuntu 22.04 |
-| **Backend** | Node.js 18, Express.js, Multer, fs-extra |
-| **Frontend** | React 18, Vite, Tailwind CSS |
-| **Testing** | Python 3, Bash scripts |
+| **Backend** | Node.js 18, Express.js, Multer, SARIF 2.1.0 export, `node --test` |
+| **Frontend** | React 18, Vite, Tailwind CSS, Monaco editor, Recharts, React Flow |
+| **Testing** | Python 3 validator (68 checks), Node analyzer tests (14) |
 
 ---
 

@@ -37,6 +37,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <map>
 #include <memory>
@@ -48,9 +49,10 @@
 using namespace clang;
 using namespace clang::tooling;
 
-/// Tool version — bumped for the v2.0 analysis overhaul (blockReason reporting,
-/// double-type tracking, self-describing JSON schema).
-#define PD_VERSION "2.0.0"
+/// Tool version. v3.0 adds the numerical model: per-variable safety scoring,
+/// static FP16/BF16 error-bound propagation, range/overflow analysis (Rule 6),
+/// and mixed-precision (__fp16 / __bf16) recommendation + rewriting.
+#define PD_VERSION "3.0.0"
 
 ///=== CLI Options ============================================================
 static llvm::cl::OptionCategory ToolCat("precision-demote options");
@@ -87,11 +89,22 @@ struct FPNode {
     bool        hasDivision = false;
     int         depCount = 0;   // number of float operand deps
     bool        isAccumulator = false; // detected +=, -=, etc.
-    bool        isSafe = false; // heuristic verdict
+    bool        isSafe = false; // heuristic verdict (safe for FP16)
     std::string blockReason;    // "" if safe, else the first rule that blocked it
+    // ── v3 numerical analysis ──────────────────────────────────────────
+    double      maxMagnitude = -1.0;  // largest known constant magnitude (-1 = unknown)
+    bool        overflowRisk = false; // a known magnitude exceeds FP16 max (65504)
+    int         safetyScore = 0;      // graded 0-100 demotion-safety confidence
+    double      errorBound = 0.0;     // estimated relative rounding error if demoted
+    std::string recommendedType;      // "__fp16" | "__bf16" | "float"
     SourceRange typeRange;      // range of the type token for rewriting
     std::vector<std::string> deps; // names of float vars this depends on
 };
+
+// IEEE-754 constants used by the numerical model.
+static constexpr double FP16_MAX      = 65504.0;      // half-precision largest finite
+static constexpr double FP16_UNIT_RND = 4.8828125e-4; // 2^-11 (11-bit mantissa incl. implicit)
+static constexpr double BF16_UNIT_RND = 3.90625e-3;   // 2^-8  (8-bit mantissa incl. implicit)
 
 /// Per-function analysis result.
 struct FuncResult {
@@ -205,10 +218,34 @@ static void collectVarRefs(const Expr *E, std::vector<std::string> &out,
     }
 }
 
+/// Largest absolute constant magnitude appearing in an expression. Used to
+/// detect values that would overflow FP16's limited range (±65504). Returns
+/// -1 when no compile-time constant is present (e.g. a pure array/param load).
+static double computeMaxMagnitude(const Expr *E) {
+    if (!E) return -1.0;
+    E = E->IgnoreParenImpCasts();
+
+    if (const auto *FL = dyn_cast<FloatingLiteral>(E)) {
+        llvm::APFloat V = FL->getValue();
+        bool lossy = false;
+        V.convert(llvm::APFloat::IEEEdouble(),
+                  llvm::APFloat::rmNearestTiesToEven, &lossy);
+        return std::fabs(V.convertToDouble());
+    }
+    if (const auto *IL = dyn_cast<IntegerLiteral>(E)) {
+        return std::fabs(IL->getValue().signedRoundToDouble());
+    }
+    double m = -1.0;
+    for (const Stmt *Child : E->children())
+        if (const auto *CE = dyn_cast_or_null<Expr>(Child))
+            m = std::max(m, computeMaxMagnitude(CE));
+    return m;
+}
+
 ///=== Heuristic Engine =======================================================
 
-/// Evaluate the 5 safety rules in priority order and record the *first* rule
-/// that blocks demotion in node.blockReason ("" means safe). Returns the safe
+/// Evaluate the safety rules in priority order and record the *first* rule that
+/// blocks demotion in node.blockReason ("" means safe). Returns the safe
 /// verdict. Centralising the reason here makes the analyzer the single source
 /// of truth — the UI no longer has to re-derive why a variable was kept.
 static bool evaluateHeuristics(FPNode &node, int maxDepth, int maxFanIn) {
@@ -228,8 +265,46 @@ static bool evaluateHeuristics(FPNode &node, int maxDepth, int maxFanIn) {
     // Rule 5: dependency fan-in within limit
     if (node.depCount > maxFanIn) { node.blockReason = "fan-in"; return false; }
 
+    // Rule 6: value must fit FP16's range. This is the only precision-safe
+    // blocker that BF16 (FP32-equivalent exponent range) can rescue.
+    if (node.overflowRisk) { node.blockReason = "overflow"; return false; }
+
     node.blockReason.clear();
     return true;
+}
+
+/// Recommend the narrowest numerically-appropriate type:
+///   ""        (safe)     -> __fp16   (range- and precision-safe)
+///   "overflow"           -> __bf16   (precision ok, only FP16 *range* fails)
+///   any other blocker    -> float    (precision hazard BF16 can't fix)
+static std::string recommendType(const FPNode &node) {
+    if (node.blockReason.empty()) return "__fp16";
+    if (node.blockReason == "overflow") return "__bf16";
+    return "float";
+}
+
+/// Estimated relative rounding error introduced by demotion, via first-order
+/// error propagation: each of the (depth+1) roundings in the chain contributes
+/// up to one unit-roundoff of the target format.
+static double estimateErrorBound(const FPNode &node, const std::string &target) {
+    if (target == "float") return 0.0;
+    double u = (target == "__bf16") ? BF16_UNIT_RND : FP16_UNIT_RND;
+    return (node.depth + 1) * u;
+}
+
+/// Graded 0-100 confidence that demotion is safe. Distinct from the binary
+/// `isSafe` verdict: it gives the UI a gradient for heatmaps and ranking.
+static int computeSafetyScore(const FPNode &node, int maxDepth, int maxFanIn) {
+    if (node.qualType != "float") return 0;            // double: not demotable
+    double s = 100.0;
+    if (node.isAccumulator)            s -= 55;
+    if (node.hasDivision)              s -= 60;
+    if (node.overflowRisk)             s -= 45;
+    s -= (node.depth > maxDepth) ? 40 : node.depth * 8;
+    s -= (node.depCount > maxFanIn) ? 30 : node.depCount * 4;
+    if (s < 0)   s = 0;
+    if (s > 100) s = 100;
+    return (int)(s + 0.5);
 }
 
 ///=== RecursiveASTVisitor ====================================================
@@ -280,6 +355,7 @@ public:
             if (const Expr *Init = VD->getInit()) {
                 int exprD = computeExprDepth(Init);
                 node.hasDivision = exprContainsDivision(Init);
+                node.maxMagnitude = computeMaxMagnitude(Init);
 
                 // Collect float variable references
                 collectVarRefs(Init, node.deps, floatVarNames);
@@ -294,22 +370,25 @@ public:
                 }
                 node.depth = exprD + maxDD;
 
-                // Propagate division flag from deps
-                if (!node.hasDivision) {
-                    for (auto &prevNode : fr.nodes) {
-                        for (auto &dep : node.deps) {
-                            if (prevNode.name == dep && prevNode.hasDivision) {
-                                node.hasDivision = true;
-                                break;
-                            }
-                        }
-                        if (node.hasDivision) break;
+                // Propagate division flag + magnitude from deps
+                for (auto &prevNode : fr.nodes) {
+                    for (auto &dep : node.deps) {
+                        if (prevNode.name != dep) continue;
+                        if (prevNode.hasDivision) node.hasDivision = true;
+                        node.maxMagnitude =
+                            std::max(node.maxMagnitude, prevNode.maxMagnitude);
                     }
                 }
             }
 
-            // Apply heuristics
+            // A known constant magnitude beyond FP16's range = overflow risk.
+            node.overflowRisk = node.maxMagnitude > FP16_MAX;
+
+            // Apply heuristics, then derive the numerical metadata.
             node.isSafe = evaluateHeuristics(node, MaxDepth, MaxFanIn);
+            node.recommendedType = recommendType(node);
+            node.errorBound = estimateErrorBound(node, node.recommendedType);
+            node.safetyScore = computeSafetyScore(node, MaxDepth, MaxFanIn);
 
             varDepthMap[node.name] = node.depth;
 
@@ -329,6 +408,9 @@ public:
             node.col  = SM_.getSpellingColumnNumber(VD->getLocation());
             node.isSafe = false;
             node.blockReason = "type"; // Rule 1: only FP32 is in scope
+            node.recommendedType = "float";
+            node.errorBound = 0.0;
+            node.safetyScore = 0;
             fr.nodes.push_back(std::move(node));
         }
 
@@ -426,7 +508,10 @@ public:
         if (!DryRun) {
             for (auto &fr : GResults) {
                 for (auto &node : fr.nodes) {
-                    if (!node.isSafe) continue;
+                    // Mixed precision: rewrite to the recommended narrow type.
+                    // Safe vars -> __fp16; range-blocked vars -> __bf16.
+                    if (node.recommendedType != "__fp16" &&
+                        node.recommendedType != "__bf16") continue;
                     if (!node.typeRange.isValid()) continue;
 
                     SourceLocation Begin =
@@ -443,7 +528,7 @@ public:
                     const char *TokStart =
                         SM.getCharacterData(Begin);
                     if (TokStart && StringRef(TokStart, TokLen) == "float") {
-                        Rw_.ReplaceText(Begin, TokLen, "__fp16");
+                        Rw_.ReplaceText(Begin, TokLen, node.recommendedType);
                     }
                 }
             }
@@ -503,6 +588,11 @@ static void writeJSON(const std::string &Path) {
             NObj["isAccumulator"]   = n.isAccumulator;
             NObj["isSafe"]          = n.isSafe;
             NObj["blockReason"]     = n.blockReason;
+            NObj["overflowRisk"]    = n.overflowRisk;
+            NObj["maxMagnitude"]    = n.maxMagnitude;
+            NObj["safetyScore"]     = n.safetyScore;
+            NObj["errorBound"]      = n.errorBound;
+            NObj["recommendedType"] = n.recommendedType;
             NObj["line"]            = (int)n.line;
             NObj["col"]             = (int)n.col;
 

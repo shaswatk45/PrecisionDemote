@@ -39,6 +39,7 @@ class VarExpectation:
     name:    str
     is_safe: bool           # True = should be demoted; False = should be kept
     reason:  str = ""       # Human-readable reason for the expected outcome
+    rec:     str = ""       # Optional: expected recommendedType (__fp16/__bf16/float)
 
 
 @dataclass
@@ -225,6 +226,20 @@ TEST_CASES: List[TestCase] = [
             ]),
         ],
     ),
+
+    # ── TC8: FP16 range / overflow → BF16 recommendation (Rule 6) ─────────────
+    TestCase(
+        id="TC8", file="tests/tc_overflow.cpp",
+        description="FP16 overflow (Rule 6) → recommend BF16 for out-of-range vars",
+        functions=[
+            FuncExpectation("overflow_cases", [
+                VarExpectation("ok",     True,  "in range", rec="__fp16"),
+                VarExpectation("big",    False, "70000 > FP16 max", rec="__bf16"),
+                VarExpectation("scaled", False, "inherits overflow", rec="__bf16"),
+                VarExpectation("small",  True,  "in range", rec="__fp16"),
+            ]),
+        ],
+    ),
 ]
 
 
@@ -300,6 +315,20 @@ def check_test(tc: TestCase, analysis: dict, repo_root: str) -> Tuple[int, int]:
             else:
                 print(f"    {status} {func_exp.func_name}::{var_exp.name}: "
                       f"expected {expected_str}, got {actual_str} {reason_str}")
+
+            # Optional: verify the recommended narrow type (FP16 / BF16 / float)
+            if var_exp.rec:
+                total += 1
+                actual_rec = node.get("recommendedType", "")
+                rec_ok = (actual_rec == var_exp.rec)
+                rstatus = f"{GREEN}✓{RESET}" if rec_ok else f"{RED}✗{RESET}"
+                if rec_ok:
+                    passed += 1
+                    print(f"    {rstatus} {func_exp.func_name}::{var_exp.name}: "
+                          f"recommends {actual_rec}")
+                else:
+                    print(f"    {rstatus} {func_exp.func_name}::{var_exp.name}: "
+                          f"expected rec {var_exp.rec}, got {actual_rec}")
 
     # Check aggregate safe counts if specified
     all_nodes = [n for f in analysis.get("functions", []) for n in f.get("nodes", [])]

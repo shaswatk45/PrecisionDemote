@@ -1,5 +1,44 @@
 # Changelog
 
+## v3.0.0 — Numerical model + analysis IDE
+
+Turns the binary "demote / keep" tool into a **mixed-precision advisor** with a
+quantified numerical model, and rebuilds the dashboard into a proper IDE.
+
+### Engine (`clang-tool/src/main.cpp`)
+- **Per-variable safety score (0–100)** — a graded confidence, distinct from the
+  binary verdict, for ranking and heatmaps.
+- **Static error-bound propagation** — estimates the relative rounding error a
+  demotion introduces via first-order propagation over FP16/BF16 unit roundoff.
+- **Range / overflow analysis (Rule 6)** — walks constant magnitudes (and
+  inherits them across the dependency graph) to detect values beyond FP16's
+  ±65504.
+- **FP16 vs BF16 recommendation** — picks the optimal narrow type per variable:
+  `__fp16` when precision- and range-safe, `__bf16` when only FP16 *range* fails
+  (BF16 shares FP32's exponent range), `float` on a precision hazard.
+- **Mixed-precision rewriting** — emits both `__fp16` and `__bf16` in one pass.
+- New test case **TC8** (overflow → BF16); suite now **68/68**.
+
+### Backend
+- Full JS-fallback parity for the new numerical model.
+- Richer metrics: avg safety score, max/avg error bound, FP16/BF16/kept counts,
+  estimated speedup (roofline proxy), bandwidth savings.
+- New endpoints: **`GET /api/examples`** (kernel gallery) and
+  **`POST /api/sarif`** (SARIF 2.1.0 export for GitHub code scanning).
+- Analyzer unit tests expanded to **14**.
+
+### Frontend
+- **Monaco (VS Code) editor** — bundled, no CDN; custom theme.
+- **Annotated source view** — the editor itself is painted with per-line
+  decorations (teal `__fp16`, amber `__bf16`, rose kept) and hover cards showing
+  score, target, error bound, and block reason.
+- **Redesigned dashboard** — radial safety-score gauge, target-type breakdown,
+  speedup / memory / error-bound stat cards, FP32/FP16/BF16 comparison.
+- **Variable table** with score bars, target-type badges, and error columns.
+- **Dependency graph** coloured by recommended type.
+- **Export menu** — rewritten source, JSON, or SARIF.
+- **Example gallery** loaded from the backend.
+
 ## v2.0.0 — Audit & overhaul
 
 A full audit (see [`AUDIT.md`](AUDIT.md)) followed by verified changes across the

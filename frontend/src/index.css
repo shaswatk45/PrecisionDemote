@@ -114,3 +114,27 @@
   20%, 80% { opacity: 1; }
   100% { transform: translateX(100%); opacity: 0; }
 }
+
+/* ── Monaco analysis decorations ─────────────────────────────────────────── */
+.pd-line-fp16 { background: rgba(20, 184, 166, 0.10); }
+.pd-line-bf16 { background: rgba(245, 158, 11, 0.10); }
+.pd-line-keep { background: rgba(244, 63, 94, 0.07); }
+
+.pd-glyph-fp16, .pd-glyph-bf16, .pd-glyph-keep {
+  width: 3px !important;
+  margin-left: 3px;
+}
+.pd-glyph-fp16 { background: #14b8a6; }
+.pd-glyph-bf16 { background: #f59e0b; }
+.pd-glyph-keep { background: #f43f5e; }
+
+/* Radial gauge label centering */
+.gauge-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}

@@ -12,6 +12,8 @@ const {
   fallbackAnalysis,
   normalizeAnalysis,
   computeMetrics,
+  toSarif,
+  EXAMPLES,
   DEFAULT_THRESHOLDS,
 } = require('./analyzer');
 
@@ -237,6 +239,33 @@ app.post('/api/analyze-text', rateLimit, async (req, res) => {
     await fs.writeFile(tmpFile, code, 'utf8');
     const analysis = await analyzeSource(code, path.basename(filename) || 'input.cpp', tmpFile);
     res.json({ jobId: uuidv4(), analysis });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    fs.remove(tmpFile).catch(() => {});
+  }
+});
+
+// Curated example kernels for the UI gallery.
+app.get('/api/examples', (req, res) => {
+  res.json({ examples: EXAMPLES });
+});
+
+// Analyze code and return a SARIF 2.1.0 log (GitHub code-scanning compatible).
+app.post('/api/sarif', rateLimit, async (req, res) => {
+  const { code, filename = 'input.cpp' } = req.body;
+  if (!code || typeof code !== 'string') {
+    return res.status(400).json({ error: 'No code provided' });
+  }
+  const tmpFile = path.join(UPLOAD_DIR, `${uuidv4()}.cpp`);
+  try {
+    await fs.writeFile(tmpFile, code, 'utf8');
+    const analysis = await analyzeSource(code, filename, tmpFile);
+    const sarif = toSarif(analysis, path.basename(filename));
+    res.setHeader('Content-Type', 'application/sarif+json');
+    res.setHeader('Content-Disposition', 'attachment; filename="precision-demote.sarif"');
+    res.send(JSON.stringify(sarif, null, 2));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
