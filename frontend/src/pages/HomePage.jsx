@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import FeatureShowcase from '../components/FeatureShowcase'
 
 const PIPELINE_STEPS = [
   { mark: '01', label: 'Load source', desc: 'Paste code or upload a C/C++ file' },
@@ -96,6 +97,8 @@ export default function HomePage() {
           </div>
         </motion.div>
       </section>
+
+      <FeatureShowcase />
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
