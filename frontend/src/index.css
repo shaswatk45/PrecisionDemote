@@ -116,9 +116,23 @@
 }
 
 /* ── Monaco analysis decorations ─────────────────────────────────────────── */
-.pd-line-fp16 { background: rgba(20, 184, 166, 0.10); }
-.pd-line-bf16 { background: rgba(245, 158, 11, 0.10); }
-.pd-line-keep { background: rgba(244, 63, 94, 0.07); }
+.pd-line-fp16 { background: rgba(20, 184, 166, 0.10); animation: pd-ignite-fp16 0.6s ease-out; }
+.pd-line-bf16 { background: rgba(245, 158, 11, 0.10); animation: pd-ignite-bf16 0.6s ease-out; }
+.pd-line-keep { background: rgba(244, 63, 94, 0.07); animation: pd-ignite-keep 0.6s ease-out; }
+
+/* Line "ignition" — a bright flash that settles into the resting tint. */
+@keyframes pd-ignite-fp16 {
+  0% { background: rgba(20, 184, 166, 0.45); }
+  100% { background: rgba(20, 184, 166, 0.10); }
+}
+@keyframes pd-ignite-bf16 {
+  0% { background: rgba(245, 158, 11, 0.45); }
+  100% { background: rgba(245, 158, 11, 0.10); }
+}
+@keyframes pd-ignite-keep {
+  0% { background: rgba(244, 63, 94, 0.40); }
+  100% { background: rgba(244, 63, 94, 0.07); }
+}
 
 .pd-glyph-fp16, .pd-glyph-bf16, .pd-glyph-keep {
   width: 3px !important;
@@ -137,4 +151,90 @@
   align-items: center;
   justify-content: center;
   pointer-events: none;
+}
+
+/* ── HUD / instrument aesthetic ──────────────────────────────────────────── */
+
+/* Corner brackets — draws thin measurement ticks on a panel's four corners. */
+.hud-corners { position: relative; }
+.hud-corners::before,
+.hud-corners::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+  opacity: 0.55;
+}
+.hud-corners::before {
+  top: 6px; left: 6px;
+  border-top: 1.5px solid rgba(129, 140, 248, 0.8);
+  border-left: 1.5px solid rgba(129, 140, 248, 0.8);
+}
+.hud-corners::after {
+  bottom: 6px; right: 6px;
+  border-bottom: 1.5px solid rgba(129, 140, 248, 0.8);
+  border-right: 1.5px solid rgba(129, 140, 248, 0.8);
+}
+
+/* Faint CRT scanlines for HUD surfaces (very subtle). */
+.hud-scanlines {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.015) 0px,
+    rgba(255, 255, 255, 0.015) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* The compiler-pass scanline that sweeps down the code. */
+.pd-scanline {
+  position: absolute;
+  left: 0; right: 0;
+  height: 44px;
+  pointer-events: none;
+  z-index: 20;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(129, 140, 248, 0.12) 35%,
+    rgba(129, 140, 248, 0.30) 50%,
+    rgba(129, 140, 248, 0.12) 65%,
+    transparent
+  );
+  border-top: 1px solid rgba(129, 140, 248, 0.25);
+  border-bottom: 1px solid rgba(129, 140, 248, 0.55);
+  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.35);
+}
+
+/* Risk skyline rows — dangerous lines pulse. */
+@keyframes pd-risk-pulse {
+  0%, 100% { opacity: 0.55; box-shadow: 0 0 4px rgba(244, 63, 94, 0.4); }
+  50% { opacity: 1; box-shadow: 0 0 12px rgba(244, 63, 94, 0.9); }
+}
+.pd-risk-row { animation: pd-risk-pulse 1.6s ease-in-out infinite; }
+
+/* Overflow gauge redline shake. */
+@keyframes pd-redline {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-2px); }
+  40% { transform: translateX(2px); }
+  60% { transform: translateX(-1.5px); }
+  80% { transform: translateX(1.5px); }
+}
+.pd-redline { animation: pd-redline 0.4s ease-in-out 2; }
+
+/* Telemetry status light. */
+@keyframes pd-telemetry {
+  0%, 100% { box-shadow: 0 0 4px 1px currentColor; opacity: 1; }
+  50% { box-shadow: 0 0 10px 3px currentColor; opacity: 0.75; }
+}
+.pd-telemetry-dot { animation: pd-telemetry 2s ease-in-out infinite; }
+
+/* Preloader progress shimmer. */
+@keyframes pd-progress-glow {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.5); }
+  100% { filter: brightness(1); }
 }

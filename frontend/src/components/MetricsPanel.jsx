@@ -4,6 +4,9 @@ import {
 } from 'recharts'
 import { motion } from 'framer-motion'
 import ScoreGauge from './ScoreGauge'
+import CountUp from './CountUp'
+import MemoryShrink from './MemoryShrink'
+import ErrorTrace from './ErrorTrace'
 
 const COLORS = {
   fp16: '#14b8a6',
@@ -26,7 +29,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 const fmtErr = (e) => (e > 0 ? `${(e * 100).toFixed(3)}%` : '0%')
 
-export default function MetricsPanel({ metrics }) {
+export default function MetricsPanel({ metrics, analysis }) {
   if (!metrics) return null
 
   const {
@@ -34,6 +37,8 @@ export default function MetricsPanel({ metrics }) {
     demotionRate, memorySavedPercent, avgSafetyScore = 0,
     maxErrorBound = 0, estimatedSpeedup = 1, bytesSaved = 0,
   } = metrics
+
+  const allNodes = (analysis?.functions || []).flatMap((f) => f.nodes || [])
 
   const pieData = [
     { name: '__fp16', value: fp16Count, fill: COLORS.fp16 },
@@ -48,17 +53,17 @@ export default function MetricsPanel({ metrics }) {
   ]
 
   const stats = [
-    ['Est. speedup', `${estimatedSpeedup}×`, 'bandwidth-bound roofline', 'text-accent-light'],
-    ['Memory saved', `${memorySavedPercent}%`, `${bytesSaved} bytes/invocation`, 'text-safe'],
-    ['Max rel. error', fmtErr(maxErrorBound), 'worst-case demoted var', 'text-warn'],
-    ['Demotion rate', `${demotionRate}%`, `${fp16Count + bf16Count}/${totalFloatVars} narrowed`, 'text-accent-light'],
+    ['Est. speedup', <CountUp key="s" value={estimatedSpeedup} decimals={2} suffix="×" duration={1100} />, 'bandwidth-bound roofline', 'text-accent-light'],
+    ['Memory saved', <CountUp key="m" value={memorySavedPercent} decimals={1} suffix="%" duration={1100} />, `${bytesSaved} bytes/invocation`, 'text-safe'],
+    ['Max rel. error', <CountUp key="e" value={maxErrorBound * 100} decimals={3} suffix="%" duration={1100} />, 'worst-case demoted var', 'text-warn'],
+    ['Demotion rate', <CountUp key="d" value={demotionRate} decimals={1} suffix="%" duration={1100} />, `${fp16Count + bf16Count}/${totalFloatVars} narrowed`, 'text-accent-light'],
   ]
 
   return (
     <div className="space-y-6">
       {/* Hero row: gauge + headline stats */}
       <div className="grid lg:grid-cols-[auto_1fr] gap-6 items-center">
-        <div className="glass p-6 flex flex-col items-center gap-2">
+        <div className="glass hud-corners p-6 flex flex-col items-center gap-2">
           <ScoreGauge value={avgSafetyScore} sublabel="avg score" />
           <p className="text-xs text-gray-500 text-center max-w-[10rem]">Mean demotion-safety confidence across all float variables</p>
         </div>
@@ -66,16 +71,28 @@ export default function MetricsPanel({ metrics }) {
           {stats.map(([label, value, sub, color], i) => (
             <motion.div
               key={label}
-              className="metric-card"
+              className="metric-card hud-corners"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.06 }}
             >
               <span className="section-title mb-0">{label}</span>
-              <span className={`text-3xl font-extrabold ${color}`}>{value}</span>
+              <span className={`text-3xl font-extrabold font-mono ${color}`}>{value}</span>
               <span className="text-xs text-gray-500">{sub}</span>
             </motion.div>
           ))}
+        </div>
+      </div>
+
+      {/* The physical memory story + the error-bound oscilloscope */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="glass hud-corners p-6">
+          <p className="section-title">Bit-level anatomy</p>
+          <MemoryShrink />
+        </div>
+        <div className="glass hud-corners p-6">
+          <p className="section-title">Error-bound trace</p>
+          <ErrorTrace nodes={allNodes} />
         </div>
       </div>
 

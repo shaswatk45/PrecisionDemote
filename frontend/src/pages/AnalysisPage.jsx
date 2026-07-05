@@ -1,8 +1,9 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import axios from 'axios'
 import toast from 'react-hot-toast'
+import { MonitorPlay } from 'lucide-react'
 import MetricsPanel from '../components/MetricsPanel'
 import GraphPanel from '../components/GraphPanel'
 import CodeDiff from '../components/CodeDiff'
@@ -10,6 +11,10 @@ import NodeTable from '../components/NodeTable'
 import CodeEditor from '../components/CodeEditor'
 import ExportMenu from '../components/ExportMenu'
 import ExamplesGallery from '../components/ExamplesGallery'
+import RiskSkyline from '../components/RiskSkyline'
+import PresenterMode from '../components/PresenterMode'
+import CountUp from '../components/CountUp'
+import useScanReveal from '../lib/useScanReveal'
 
 const DEMO_CODE = `float dot_product(float* a, float* b, int n) {
     float sum = 0.0f;
@@ -22,11 +27,54 @@ const DEMO_CODE = `float dot_product(float* a, float* b, int n) {
     return sum;
 }
 
-float sigmoid_approx(float x) {
-    float ex  = x * 0.5f;
-    float inv = 1.0f / (1.0f + ex);
-    return inv;
+float scale_kernel(float* x) {
+    float gain   = 70000.0f;
+    float scaled = gain + x[0];
+    float ex     = x[0] * 0.5f;
+    float inv    = 1.0f / (1.0f + ex);
+    return scaled * inv;
 }`
+
+const TAB_VARIANTS = {
+  initial: { opacity: 0, x: 28, filter: 'blur(6px)' },
+  animate: { opacity: 1, x: 0, filter: 'blur(0px)' },
+}
+
+/**
+ * Annotated-source tab, isolated so the 60fps scan sweep re-renders only this
+ * subtree — the rest of the page (tabs, summary, charts) stays untouched.
+ */
+function AnnotatedSource({ source, nodes, totalLines }) {
+  const editorRef = useRef(null)
+  const { visibleNodes, progress, scanning } = useScanReveal(nodes, { duration: 1900 })
+
+  return (
+    <div className="glass hud-corners overflow-hidden">
+      <div className="flex items-center gap-4 px-4 py-3 border-b border-white/10 flex-wrap text-xs">
+        <span className="font-semibold text-gray-400 uppercase tracking-wider">Annotated Source</span>
+        <span className="flex items-center gap-1.5 text-gray-400"><span className="w-3 h-1.5 rounded bg-safe" /> __fp16</span>
+        <span className="flex items-center gap-1.5 text-gray-400"><span className="w-3 h-1.5 rounded bg-warn" /> __bf16</span>
+        <span className="flex items-center gap-1.5 text-gray-400"><span className="w-3 h-1.5 rounded bg-unsafe" /> kept float</span>
+        <span className="ml-auto text-gray-500 font-mono">
+          {scanning ? 'compiler pass…' : 'hover a highlighted line for the reasoning'}
+        </span>
+      </div>
+      <div className="flex gap-2 p-2">
+        <RiskSkyline nodes={nodes} totalLines={totalLines} editorRef={editorRef} height={560} />
+        <div className="flex-1 min-w-0">
+          <CodeEditor
+            value={source}
+            readOnly
+            nodes={visibleNodes}
+            height={560}
+            scanProgress={scanning ? progress : null}
+            onEditorMount={(ed) => { editorRef.current = ed }}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function AnalysisPage() {
   const [mode, setMode] = useState('edit')
@@ -36,6 +84,8 @@ export default function AnalysisPage() {
   const [activeTab, setActiveTab] = useState('annotated')
   const [health, setHealth] = useState(null)
   const [examples, setExamples] = useState([])
+  const [presenting, setPresenting] = useState(false)
+  const autoRanRef = useRef(false)
 
   useEffect(() => {
     axios.get('/api/health')
@@ -62,7 +112,7 @@ export default function AnalysisPage() {
     noClick: mode === 'edit',
   })
 
-  const analyze = useCallback(async () => {
+  const analyze = useCallback(async (opts = {}) => {
     if (!code.trim()) { toast.error('Please provide some code'); return }
     setLoading(true)
     setResult(null)
@@ -70,7 +120,7 @@ export default function AnalysisPage() {
       const { data } = await axios.post('/api/analyze-text', { code, filename: 'input.cpp' })
       setResult(data.analysis)
       setActiveTab('annotated')
-      toast.success('Analysis complete')
+      if (!opts.silent) toast.success('Analysis complete')
     } catch (err) {
       toast.error(err.response?.data?.error || 'Backend error. Is the server running?')
     } finally {
@@ -78,7 +128,30 @@ export default function AnalysisPage() {
     }
   }, [code])
 
-  const allNodes = result ? result.functions.flatMap(f => f.nodes) : []
+  // Auto-run the first analysis on page load — the tool is already performing
+  // before a single click (guarded against StrictMode double-mount).
+  const analyzeRef = useRef(analyze)
+  analyzeRef.current = analyze
+  useEffect(() => {
+    // Guard inside the callback: StrictMode mounts effects twice, and a guard
+    // set during the first run would otherwise cancel the auto-run entirely.
+    const t = setTimeout(() => {
+      if (autoRanRef.current) return
+      autoRanRef.current = true
+      analyzeRef.current({ silent: true })
+    }, 900)
+    return () => clearTimeout(t)
+  }, [])
+
+  const allNodes = useMemo(
+    () => (result ? result.functions.flatMap(f => f.nodes) : []),
+    [result]
+  )
+  const totalLines = useMemo(
+    () => (result?.originalSource ? result.originalSource.split('\n').length : 1),
+    [result]
+  )
+
   const m = result?.metrics
 
   const tabs = [
@@ -89,9 +162,15 @@ export default function AnalysisPage() {
     { id: 'metrics', label: 'Metrics' },
   ]
 
-  const engineLabel = !health ? 'Checking backend…'
-    : health.status === 'offline' ? 'Backend offline'
-    : health.toolReady ? 'Clang AST engine' : 'JS fallback engine'
+  const engine = !health ? 'boot'
+    : health.status === 'offline' ? 'offline'
+    : health.toolReady ? 'clang' : 'fallback'
+  const engineMeta = {
+    boot: { color: '#6b7280', label: 'LINKING…' },
+    offline: { color: '#f43f5e', label: 'ENGINE OFFLINE' },
+    clang: { color: '#14b8a6', label: 'CLANG-AST · ONLINE' },
+    fallback: { color: '#f59e0b', label: 'JS-FALLBACK · ONLINE' },
+  }[engine]
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
@@ -104,17 +183,32 @@ export default function AnalysisPage() {
             Edit C/C++ in the IDE below, then inspect every mixed-precision decision — score, target type, and error bound.
           </p>
         </div>
-        <div className={`glass px-4 py-3 text-sm ${health?.status === 'offline' ? 'border-unsafe/40' : 'border-safe/30'}`}>
-          <div className="flex items-center gap-2">
-            <span className={`w-2.5 h-2.5 rounded-full ${health?.status === 'offline' ? 'bg-unsafe' : 'bg-safe animate-pulse-slow'}`} />
-            <span className="text-gray-300">{engineLabel}</span>
+
+        <div className="flex items-center gap-3">
+          {/* Telemetry engine light */}
+          <div className="glass hud-scanlines px-4 py-2.5 flex items-center gap-2.5">
+            <span
+              className="pd-telemetry-dot w-2 h-2 rounded-full"
+              style={{ background: engineMeta.color, color: engineMeta.color }}
+            />
+            <span className="font-mono text-[11px] tracking-widest" style={{ color: engineMeta.color }}>
+              {engineMeta.label}
+            </span>
           </div>
+
+          <button
+            onClick={() => setPresenting(true)}
+            className="btn-primary text-sm px-4 py-2.5 flex items-center gap-2"
+            title="Auto-playing walkthrough — space to advance, Esc to exit"
+          >
+            <MonitorPlay className="w-4 h-4" /> Present
+          </button>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-[1.25fr_.75fr] gap-6">
         <motion.div
-          className="glass flex flex-col min-h-[480px] overflow-hidden"
+          className="glass hud-corners flex flex-col min-h-[480px] overflow-hidden"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 100, damping: 20 }}
@@ -177,7 +271,7 @@ export default function AnalysisPage() {
 
           <motion.button
             className="btn-primary w-full py-4 text-base flex items-center justify-center gap-3 relative overflow-hidden"
-            onClick={analyze}
+            onClick={() => analyze()}
             disabled={loading}
             whileHover={{ scale: loading ? 1 : 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -190,13 +284,12 @@ export default function AnalysisPage() {
             )}
           </motion.button>
 
-          <AnimatePresence>
-            {result && m && (
+          {result && m && (
               <motion.div
+                key={`summary-${result.jobId || m.totalFloatVars}-${m.fp16Count}`}
                 initial={{ opacity: 0, y: 15, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="glass p-5 space-y-3"
+                className="glass hud-corners p-5 space-y-3"
               >
                 <p className="section-title mb-2">Summary</p>
                 <div className="grid grid-cols-3 gap-2 text-center">
@@ -206,70 +299,73 @@ export default function AnalysisPage() {
                     ['kept', m.keptFloatCount, 'text-unsafe'],
                   ].map(([label, val, color]) => (
                     <div key={label} className="bg-white/5 rounded-lg py-2">
-                      <div className={`text-2xl font-extrabold ${color}`}>{val}</div>
+                      <div className={`text-2xl font-extrabold font-mono ${color}`}>
+                        <CountUp value={val} duration={800} />
+                      </div>
                       <div className="text-[10px] text-gray-500 font-mono">{label}</div>
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-between text-xs text-gray-400 pt-1">
-                  <span>≈ {m.estimatedSpeedup}× speedup</span>
-                  <span>{m.bytesSaved} B saved</span>
-                  <span>score {m.avgSafetyScore}</span>
+                <div className="flex justify-between text-xs text-gray-400 pt-1 font-mono">
+                  <span>≈ <CountUp value={m.estimatedSpeedup} decimals={2} duration={900} />× speedup</span>
+                  <span><CountUp value={m.bytesSaved} duration={900} /> B saved</span>
+                  <span>score <CountUp value={m.avgSafetyScore} duration={900} /></span>
                 </div>
                 <p className={`text-xs ${result.engine === 'fallback-js' ? 'text-warn/80' : 'text-safe/80'}`}>
                   {result.engine === 'fallback-js' ? 'JS fallback analyzer' : `Clang AST · tool v${result.toolVersion || '3.0'}`}
                 </p>
               </motion.div>
-            )}
-          </AnimatePresence>
+          )}
         </motion.div>
       </div>
 
-      <AnimatePresence>
-        {result && (
+      {result && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             <div className="flex gap-2 flex-wrap items-center">
               {tabs.map(t => (
                 <button
                   key={t.id}
                   onClick={() => setActiveTab(t.id)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === t.id ? 'bg-accent/20 text-accent border border-accent/40' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                  className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${activeTab === t.id ? 'text-accent' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                 >
-                  {t.label}
+                  {activeTab === t.id && (
+                    <motion.span
+                      layoutId="pd-tab-pill"
+                      className="absolute inset-0 rounded-lg bg-accent/20 border border-accent/40"
+                      transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                    />
+                  )}
+                  <span className="relative">{t.label}</span>
                 </button>
               ))}
               <div className="ml-auto"><ExportMenu analysis={result} code={code} /></div>
             </div>
 
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-              >
-                {activeTab === 'annotated' && (
-                  <div className="glass overflow-hidden">
-                    <div className="flex items-center gap-4 px-4 py-3 border-b border-white/10 flex-wrap text-xs">
-                      <span className="font-semibold text-gray-400 uppercase tracking-wider">Annotated Source</span>
-                      <span className="flex items-center gap-1.5 text-gray-400"><span className="w-3 h-1.5 rounded bg-safe" /> __fp16</span>
-                      <span className="flex items-center gap-1.5 text-gray-400"><span className="w-3 h-1.5 rounded bg-warn" /> __bf16</span>
-                      <span className="flex items-center gap-1.5 text-gray-400"><span className="w-3 h-1.5 rounded bg-unsafe" /> kept float</span>
-                      <span className="ml-auto text-gray-500">hover a highlighted line for details</span>
-                    </div>
-                    <CodeEditor value={result.originalSource} readOnly nodes={allNodes} height={560} />
-                  </div>
-                )}
-                {activeTab === 'diff' && <CodeDiff original={result.originalSource} rewritten={result.rewrittenSource} />}
-                {activeTab === 'graph' && <GraphPanel analysis={result} />}
-                {activeTab === 'nodes' && <NodeTable analysis={result} />}
-                {activeTab === 'metrics' && <MetricsPanel metrics={result.metrics} />}
-              </motion.div>
-            </AnimatePresence>
+            <motion.div
+              key={activeTab}
+              variants={TAB_VARIANTS}
+              initial="initial"
+              animate="animate"
+              transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+            >
+              {activeTab === 'annotated' && (
+                <AnnotatedSource source={result.originalSource} nodes={allNodes} totalLines={totalLines} />
+              )}
+              {activeTab === 'diff' && <CodeDiff original={result.originalSource} rewritten={result.rewrittenSource} />}
+              {activeTab === 'graph' && <GraphPanel analysis={result} />}
+              {activeTab === 'nodes' && <NodeTable analysis={result} />}
+              {activeTab === 'metrics' && <MetricsPanel metrics={result.metrics} analysis={result} />}
+            </motion.div>
           </motion.div>
-        )}
-      </AnimatePresence>
+      )}
+
+      {presenting && (
+        <PresenterMode
+          analysis={result}
+          code={code}
+          onClose={() => setPresenting(false)}
+        />
+      )}
     </div>
   )
 }
