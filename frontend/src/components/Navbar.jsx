@@ -29,6 +29,7 @@ export default function Navbar() {
             { path: '/visualizer', label: 'Dependency Graph' },
             { path: '/metrics', label: 'Metrics' },
             { path: '/simulator', label: 'Simulator' },
+            { path: '/ppt', label: 'Project PPT' },
             { path: '/docs', label: 'Compiler Docs' },
           ].map(({ path, label }) => (
             <Link

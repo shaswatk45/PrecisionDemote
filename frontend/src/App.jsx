@@ -11,7 +11,9 @@ import VisualizerPage from './pages/VisualizerPage'
 import MetricsPage from './pages/MetricsPage'
 import SimulatorPage from './pages/SimulatorPage'
 import DocsPage from './pages/DocsPage'
+import SlidesPage from './pages/SlidesPage'
 import { fallbackAnalysis, computeMetrics, EXAMPLES } from './lib/analyzer'
+
 
 const DEMO_CODE = `float dot_product(float* a, float* b, int n) {
     float sum = 0.0f;
@@ -127,6 +129,7 @@ export default function App() {
             <Route path="/metrics" element={<MetricsPage result={result} />} />
             <Route path="/simulator" element={<SimulatorPage code={code} />} />
             <Route path="/docs" element={<DocsPage />} />
+            <Route path="/ppt" element={<SlidesPage />} />
           </Routes>
         </ErrorBoundary>
       </main>

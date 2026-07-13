@@ -171,9 +171,12 @@ export default function HomePage() {
             >
               Analyze C/C++ Source
             </button>
-            <a href="#pipeline" className="btn-outline-dark text-xs flex items-center py-2.5 px-6">
-              View Pipeline
-            </a>
+            <button
+              onClick={() => navigate('/ppt')}
+              className="btn-outline-dark text-xs flex items-center py-2.5 px-6"
+            >
+              View PPT
+            </button>
           </div>
         </motion.div>
 
