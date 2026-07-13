@@ -15,6 +15,7 @@ import RiskSkyline from '../components/RiskSkyline'
 import PresenterMode from '../components/PresenterMode'
 import CountUp from '../components/CountUp'
 import useScanReveal from '../lib/useScanReveal'
+import SimulationPanel from '../components/SimulationPanel'
 
 const DEMO_CODE = `float dot_product(float* a, float* b, int n) {
     float sum = 0.0f;
@@ -88,16 +89,25 @@ export default function AnalysisPage() {
   const [health, setHealth] = useState(null)
   const [examples, setExamples] = useState([])
   const [presenting, setPresenting] = useState(false)
+  const [maxDepth, setMaxDepth] = useState(3)
+  const [maxFanIn, setMaxFanIn] = useState(5)
   const autoRanRef = useRef(false)
 
   useEffect(() => {
     axios.get('/api/health')
-      .then(({ data }) => setHealth(data))
+      .then(({ data }) => {
+        setHealth(data)
+        if (data?.thresholds) {
+          setMaxDepth(data.thresholds.maxDepth ?? 3)
+          setMaxFanIn(data.thresholds.maxFanIn ?? 5)
+        }
+      })
       .catch(() => setHealth({ status: 'offline', mode: 'offline', toolReady: false }))
     axios.get('/api/examples')
       .then(({ data }) => setExamples(data.examples || []))
       .catch(() => {})
   }, [])
+
 
   const onDrop = useCallback(async (files) => {
     const f = files[0]
@@ -120,7 +130,11 @@ export default function AnalysisPage() {
     setLoading(true)
     setResult(null)
     try {
-      const { data } = await axios.post('/api/analyze-text', { code, filename: 'input.cpp' })
+      const { data } = await axios.post('/api/analyze-text', {
+        code,
+        filename: 'input.cpp',
+        thresholds: { maxDepth, maxFanIn }
+      })
       setResult(data.analysis)
       setActiveTab('annotated')
       if (!opts.silent) toast.success('Analysis complete')
@@ -133,7 +147,8 @@ export default function AnalysisPage() {
     } finally {
       setLoading(false)
     }
-  }, [code])
+  }, [code, maxDepth, maxFanIn])
+
 
   const analyzeRef = useRef(analyze)
   analyzeRef.current = analyze
@@ -163,6 +178,7 @@ export default function AnalysisPage() {
     { id: 'graph',     label: 'Dependency Graph' },
     { id: 'nodes',     label: 'Variable Table' },
     { id: 'metrics',   label: 'Metrics' },
+    { id: 'simulation', label: 'Numerical Simulation' },
   ]
 
   const engine = !health ? 'boot'
@@ -268,21 +284,55 @@ export default function AnalysisPage() {
         >
           <ExamplesGallery examples={examples} onPick={(c) => { setCode(c); setMode('edit') }} />
 
-          <div className="nv-panel p-5 space-y-3 relative">
+          <div className="nv-panel p-5 space-y-4 relative">
             <div className="corner-square opacity-60" />
-            <p className="text-xs font-bold uppercase tracking-widest text-nv mb-2">Thresholds</p>
-            {[
-              { label: 'Max arithmetic depth', val: `≤ ${health?.thresholds?.maxDepth ?? 3}` },
-              { label: 'Max dependency fan-in', val: `≤ ${health?.thresholds?.maxFanIn ?? 5}` },
-              { label: 'FP16 range limit',      val: '±65504' },
-              { label: 'Targets',               val: '__fp16 · __bf16' },
-            ].map(({ label, val }) => (
-              <div key={label} className="flex justify-between text-xs uppercase tracking-wide">
-                <span className="text-mute">{label}</span>
-                <span className="font-mono text-nv font-bold">{val}</span>
+            <p className="text-xs font-bold uppercase tracking-widest text-nv mb-1">Analysis Thresholds</p>
+
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs uppercase tracking-wide">
+                <span className="text-mute">Max arithmetic depth</span>
+                <span className="font-mono text-nv font-bold">≤ {maxDepth}</span>
               </div>
-            ))}
+              <input
+                type="range"
+                min="1"
+                max="10"
+                value={maxDepth}
+                onChange={(e) => setMaxDepth(Number(e.target.value))}
+                className="w-full h-1 bg-[#1a1a1a] rounded-sm appearance-none cursor-pointer accent-nv"
+                style={{ accentColor: '#76b900' }}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs uppercase tracking-wide">
+                <span className="text-mute">Max dependency fan-in</span>
+                <span className="font-mono text-nv font-bold">≤ {maxFanIn}</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="15"
+                value={maxFanIn}
+                onChange={(e) => setMaxFanIn(Number(e.target.value))}
+                className="w-full h-1 bg-[#1a1a1a] rounded-sm appearance-none cursor-pointer accent-nv"
+                style={{ accentColor: '#76b900' }}
+              />
+            </div>
+
+            <div className="border-t border-line pt-3 space-y-2">
+              {[
+                { label: 'FP16 range limit',      val: '±65504' },
+                { label: 'Targets',               val: '__fp16 · __bf16' },
+              ].map(({ label, val }) => (
+                <div key={label} className="flex justify-between text-xs uppercase tracking-wide">
+                  <span className="text-mute">{label}</span>
+                  <span className="font-mono text-nv font-bold">{val}</span>
+                </div>
+              ))}
+            </div>
           </div>
+
 
           <motion.button
             className="btn-primary w-full py-4 text-xs font-bold tracking-wider flex items-center justify-center gap-3 relative overflow-hidden"
@@ -377,6 +427,7 @@ export default function AnalysisPage() {
             {activeTab === 'graph'     && <GraphPanel analysis={result} />}
             {activeTab === 'nodes'     && <NodeTable analysis={result} />}
             {activeTab === 'metrics'   && <MetricsPanel metrics={result.metrics} analysis={result} />}
+            {activeTab === 'simulation' && <SimulationPanel code={code} />}
           </motion.div>
         </motion.div>
       )}

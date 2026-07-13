@@ -135,19 +135,16 @@ function isToolAvailable() {
   }
 }
 
-function runClangTool(srcPath, outputJsonPath) {
+function runClangTool(srcPath, outputJsonPath, activeThresholds = THRESHOLDS) {
   const wslSrc = toWSLPath(srcPath);
   const wslOut = toWSLPath(outputJsonPath);
 
-  // execFileSync with an argument array — arguments are passed to `wsl`
-  // literally, never interpolated into a shell, eliminating the command
-  // injection that string-interpolated execSync was exposed to.
   const args = [
     '-d', WSL_DISTRO, '--',
     TOOL_WSL_PATH, wslSrc,
     '--output-json', wslOut,
-    `--max-depth=${THRESHOLDS.maxDepth}`,
-    `--max-fan-in=${THRESHOLDS.maxFanIn}`,
+    `--max-depth=${activeThresholds.maxDepth}`,
+    `--max-fan-in=${activeThresholds.maxFanIn}`,
     '--', '-std=c++17',
   ];
 
@@ -171,24 +168,28 @@ function runClangTool(srcPath, outputJsonPath) {
   }
 }
 
-async function analyzeSource(code, filename, tmpFile) {
+async function analyzeSource(code, filename, tmpFile, userThresholds = null) {
   const outputJson = path.join(OUTPUT_DIR, `${uuidv4()}.json`);
+  const activeThresholds = userThresholds
+    ? { ...THRESHOLDS, ...userThresholds }
+    : THRESHOLDS;
   try {
     let analysis = null;
     if (isToolAvailable()) {
-      analysis = runClangTool(tmpFile, outputJson);
+      analysis = runClangTool(tmpFile, outputJson, activeThresholds);
     }
     if (!analysis) {
-      analysis = fallbackAnalysis(code, filename, THRESHOLDS);
+      analysis = fallbackAnalysis(code, filename, activeThresholds);
     }
     analysis = normalizeAnalysis(analysis);
     analysis.metrics = computeMetrics(analysis);
-    analysis.thresholds = analysis.thresholds || THRESHOLDS;
+    analysis.thresholds = activeThresholds;
     return analysis;
   } finally {
     fs.remove(outputJson).catch(() => {});
   }
 }
+
 
 // ── Routes ──────────────────────────────────────────────────────────────────
 
@@ -215,9 +216,20 @@ app.get('/api/version', (req, res) => {
 app.post('/api/analyze', rateLimit, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
+  let userThresholds = null;
+  if (req.body.thresholds) {
+    try {
+      userThresholds = typeof req.body.thresholds === 'string'
+        ? JSON.parse(req.body.thresholds)
+        : req.body.thresholds;
+    } catch (e) {
+      console.warn('Failed to parse thresholds:', e);
+    }
+  }
+
   try {
     const code = await fs.readFile(req.file.path, 'utf8');
-    const analysis = await analyzeSource(code, req.file.originalname, req.file.path);
+    const analysis = await analyzeSource(code, req.file.originalname, req.file.path, userThresholds);
     res.json({ jobId: uuidv4(), analysis });
   } catch (err) {
     console.error(err);
@@ -228,16 +240,27 @@ app.post('/api/analyze', rateLimit, upload.single('file'), async (req, res) => {
 });
 
 app.post('/api/analyze-text', rateLimit, async (req, res) => {
-  const { code, filename = 'input.cpp' } = req.body;
+  const { code, filename = 'input.cpp', thresholds } = req.body;
   if (!code || typeof code !== 'string') {
     return res.status(400).json({ error: 'No code provided' });
+  }
+
+  let userThresholds = null;
+  if (thresholds) {
+    try {
+      userThresholds = typeof thresholds === 'string'
+        ? JSON.parse(thresholds)
+        : thresholds;
+    } catch (e) {
+      console.warn('Failed to parse thresholds:', e);
+    }
   }
 
   const ext = (path.extname(filename) || '.cpp').toLowerCase();
   const tmpFile = path.join(UPLOAD_DIR, `${uuidv4()}${/\.(c|cpp|cc|cxx|h|hpp)$/i.test(ext) ? ext : '.cpp'}`);
   try {
     await fs.writeFile(tmpFile, code, 'utf8');
-    const analysis = await analyzeSource(code, path.basename(filename) || 'input.cpp', tmpFile);
+    const analysis = await analyzeSource(code, path.basename(filename) || 'input.cpp', tmpFile, userThresholds);
     res.json({ jobId: uuidv4(), analysis });
   } catch (err) {
     console.error(err);
@@ -246,6 +269,7 @@ app.post('/api/analyze-text', rateLimit, async (req, res) => {
     fs.remove(tmpFile).catch(() => {});
   }
 });
+
 
 // Curated example kernels for the UI gallery.
 app.get('/api/examples', (req, res) => {
