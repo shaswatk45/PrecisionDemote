@@ -297,6 +297,69 @@ export function computeMetrics(analysis) {
     functionsAnalyzed: analysis.functions?.length || 0,
   };
 }
+export const SARIF_RULES = [
+  { id: 'PD-SAFE', name: 'DemotableToFP16', level: 'note', text: 'Variable is safe to narrow to __fp16.' },
+  { id: 'PD-BF16', name: 'RecommendBF16', level: 'note', text: 'Variable exceeds FP16 range; recommend __bf16.' },
+  { id: 'PD-KEEP', name: 'KeepFloat', level: 'warning', text: 'Variable kept at float due to a precision hazard.' },
+];
+
+export function toSarif(analysis, filename = 'input.cpp') {
+  const results = [];
+  for (const fn of analysis.functions || []) {
+    for (const n of fn.nodes || []) {
+      let ruleId = 'PD-KEEP';
+      let msg;
+      if (n.recommendedType === '__fp16') {
+        ruleId = 'PD-SAFE';
+        msg = `'${n.name}' is safe to demote to __fp16 (score ${n.safetyScore}, est. rel. error ${(n.errorBound || 0).toExponential(2)}).`;
+      } else if (n.recommendedType === '__bf16') {
+        ruleId = 'PD-BF16';
+        msg = `'${n.name}' exceeds FP16 range — recommend __bf16 (est. rel. error ${(n.errorBound || 0).toExponential(2)}).`;
+      } else {
+        msg = `'${n.name}' kept at float — ${n.blockReason || 'precision hazard'}.`;
+      }
+      const rule = SARIF_RULES.find((r) => r.id === ruleId);
+      results.push({
+        ruleId,
+        level: rule.level,
+        message: { text: msg },
+        locations: [{
+          physicalLocation: {
+            artifactLocation: { uri: filename },
+            region: { startLine: n.line || 1, startColumn: n.col || 1 },
+          },
+        }],
+        properties: {
+          function: fn.name,
+          recommendedType: n.recommendedType,
+          safetyScore: n.safetyScore,
+          errorBound: n.errorBound,
+        },
+      });
+    }
+  }
+
+  return {
+    $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
+    version: '2.1.0',
+    runs: [{
+      tool: {
+        driver: {
+          name: 'PrecisionDemote',
+          informationUri: 'https://github.com/shaswatk45/PrecisionDemote',
+          version: '3.0.0',
+          rules: SARIF_RULES.map((r) => ({
+            id: r.id,
+            name: r.name,
+            shortDescription: { text: r.text },
+            defaultConfiguration: { level: r.level },
+          })),
+        },
+      },
+      results,
+    }],
+  };
+}
 
 export const EXAMPLES = [
   {
