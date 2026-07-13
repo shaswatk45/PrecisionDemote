@@ -16,7 +16,7 @@ import PresenterMode from '../components/PresenterMode'
 import CountUp from '../components/CountUp'
 import useScanReveal from '../lib/useScanReveal'
 import SimulationPanel from '../components/SimulationPanel'
-import { fallbackAnalysis, computeMetrics } from '../lib/analyzer'
+import { fallbackAnalysis, computeMetrics, EXAMPLES } from '../lib/analyzer'
 
 const DEMO_CODE = `float dot_product(float* a, float* b, int n) {
     float sum = 0.0f;
@@ -106,8 +106,12 @@ export default function AnalysisPage() {
       .catch(() => setHealth({ status: 'offline', mode: 'offline', toolReady: false }))
     axios.get('/api/examples')
       .then(({ data }) => setExamples(data.examples || []))
-      .catch(() => {})
+      .catch(() => {
+        console.warn('Backend unavailable, loading examples locally')
+        setExamples(EXAMPLES)
+      })
   }, [])
+
 
 
   const onDrop = useCallback(async (files) => {
