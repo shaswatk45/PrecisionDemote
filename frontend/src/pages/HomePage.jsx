@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowRight, Code, ShieldCheck, Cpu } from 'lucide-react'
 import FeatureShowcase from '../components/FeatureShowcase'
 import Preloader from '../components/Preloader'
+import { GlowingEffect } from '../components/ui/glowing-effect'
+import { LampContainer } from '../components/ui/lamp'
 
 const PIPELINE_STEPS = [
   { mark: '01', label: 'LOAD SOURCE', desc: 'Paste raw source code or upload target C/C++ files directly into the workspace.' },
@@ -55,10 +56,11 @@ function SelfAnalyzingCard() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="nv-panel overflow-hidden relative font-sans"
+      className="nv-panel overflow-hidden relative font-sans min-h-[300px]"
     >
+      <GlowingEffect disabled={false} glow={true} proximity={80} spread={50} borderWidth={1.5} />
       <div className="corner-square" />
-      <div className="border-b border-line px-4 py-3 flex items-center gap-2 bg-[#000000]">
+      <div className="border-b border-line px-4 py-3 flex items-center gap-2 bg-[#000000] relative z-10">
         <span className="w-2 h-2 bg-nv rounded-full" />
         <span className="text-[11px] text-mute uppercase font-mono tracking-widest">Compiler Analyzer Output: dot_product.cpp</span>
         <span className="ml-auto font-mono text-[10px] uppercase text-nv tracking-widest">
@@ -66,53 +68,44 @@ function SelfAnalyzingCard() {
         </span>
       </div>
 
-      <div className="relative bg-[#000000]">
+      <div className="relative bg-[#000000] z-10 p-4">
         {scanning && (
-          <div className="pd-scanline" style={{ top: `calc(${((reveal / SAMPLE_LINES.length) * 100).toFixed(1)}% - 12px)` }} />
+          <div className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-nv/40 to-transparent animate-scan"
+            style={{ top: `${(reveal / SAMPLE_LINES.length) * 100}%` }} />
         )}
-        <pre className="code-block p-6 text-mute min-h-[260px] text-xs font-mono">
-          {SAMPLE_LINES.map((text, i) => {
-            const isFp16 = i === 3 || i === 4 || i === 5
-            const isFloat = i === 1
-            const showVerdict = i + 1 <= reveal
-            let color = null
-            if (showVerdict) {
-              if (isFp16) color = '#76b900'
-              if (isFloat) color = '#f43f5e'
-            }
-
-            return (
-              <div
-                key={i}
-                className="px-2 -mx-2 rounded-none transition-colors duration-300"
-                style={color ? { background: `${color}0c`, borderLeft: `2px solid ${color}` } : { borderLeft: '2px solid transparent' }}
-              >
-                {text || ' '}
-                {showVerdict && (isFp16 || isFloat) && (
-                  <span
-                    className="ml-3 text-[10px] font-bold uppercase tracking-wider font-mono"
-                    style={{ color }}
-                  >
-                    {isFp16 ? '→ __fp16' : '× Kept Float'}
-                  </span>
-                )}
-              </div>
-            )
-          })}
+        <pre className="text-[11px] font-mono text-ink leading-relaxed overflow-x-auto">
+          <code>
+            {SAMPLE_LINES.map((lineText, idx) => {
+              const active = idx < reveal
+              const v = SAMPLE_VERDICTS[idx]
+              return (
+                <div
+                  key={idx}
+                  className="flex flex-wrap items-center gap-3 py-0.5 px-2 rounded-sm transition-all duration-200"
+                  style={{
+                    opacity: active ? 1 : 0.25,
+                    background: active ? 'rgba(255,255,255,0.02)' : 'transparent',
+                  }}
+                >
+                  <span className="text-mute select-none w-4 text-right">{idx + 1}</span>
+                  <span className="flex-1 text-white">{lineText}</span>
+                  {active && v && (
+                    <span
+                      className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.2 border rounded-sm"
+                      style={{
+                        color: REC_COLOR[v.split(' ')[0]] || '#e2e8f0',
+                        borderColor: `${REC_COLOR[v.split(' ')[0]]}40` || '#475569',
+                        background: `${REC_COLOR[v.split(' ')[0]]}10` || 'transparent',
+                      }}
+                    >
+                      {v}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
+          </code>
         </pre>
-      </div>
-
-      <div className="grid grid-cols-3 text-center border-t border-line bg-[#000000]">
-        {[
-          ['03', 'DEMOTED VARS'],
-          ['01', 'RETAINED VARS'],
-          ['50%', 'STORAGE REDUCTION'],
-        ].map(([value, label]) => (
-          <div key={label} className="p-4 border-r border-line last:border-none">
-            <div className="text-xl font-black text-white font-mono">{value}</div>
-            <div className="text-[10px] text-stone uppercase tracking-widest mt-1 font-mono">{label}</div>
-          </div>
-        ))}
       </div>
     </motion.div>
   )
@@ -136,125 +129,135 @@ export default function HomePage() {
   const navigate = useNavigate()
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-12 space-y-20 font-sans">
+    <div className="w-full font-sans space-y-20 pb-20 bg-black">
       <Preloader />
 
-      {/* Hero Section */}
-      <section className="grid lg:grid-cols-[1.1fr_.9fr] gap-12 items-center min-h-[calc(100vh-12rem)] py-8">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4 }}
-          className="space-y-8"
-        >
-          <div className="space-y-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-nv">Static Code Analysis Framework</p>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black uppercase tracking-tight leading-none text-white font-sans">
-              Precision-Aware<br />
-              Type Demotion
-            </h1>
-            <p className="text-sm text-mute max-w-xl leading-relaxed uppercase tracking-wider font-mono">
-              FP32 TO FP16 / BF16 COMPILER-GRADE OPTIMIZATION PASS
+      {/* Hero Section wrapped inside the customized green LampContainer */}
+      <LampContainer className="border-none py-16 min-h-[640px] flex items-center justify-center relative">
+        <div className="grid lg:grid-cols-[1.1fr_.9fr] gap-12 items-center w-full max-w-7xl mx-auto px-6 text-left relative z-50">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            className="space-y-8"
+          >
+            <div className="space-y-4">
+              <p className="text-xs font-bold uppercase tracking-widest text-nv">Static Code Analysis Framework</p>
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black uppercase tracking-tight leading-none text-white">
+                Precision-Aware<br />
+                Type Demotion
+              </h1>
+              <p className="text-sm text-mute max-w-xl leading-relaxed uppercase tracking-wider font-mono">
+                FP32 TO FP16 / BF16 COMPILER-GRADE OPTIMIZATION PASS
+              </p>
+            </div>
+
+            <p className="text-sm text-body max-w-xl leading-relaxed">
+              Automate variables demotion in computational kernels safely. 
+              PrecisionDemote inspects the C/C++ AST hierarchy, evaluates numerical risk, 
+              quantifies maximum fan-in and deep division chains, and rewrites source code in place.
             </p>
+
+            <div className="flex flex-wrap gap-4 pt-2">
+              <button
+                className="btn-primary relative"
+                onClick={() => navigate('/workspace')}
+              >
+                Analyze C/C++ Source
+              </button>
+              <button
+                onClick={() => navigate('/ppt')}
+                className="btn-outline-dark text-xs flex items-center py-2.5 px-6 relative"
+              >
+                View PPT
+              </button>
+            </div>
+          </motion.div>
+
+          <div className="relative">
+            <SelfAnalyzingCard />
           </div>
-
-          <p className="text-sm text-body max-w-xl leading-relaxed">
-            Automate variables demotion in computational kernels safely. 
-            PrecisionDemote inspects the C/C++ AST hierarchy, evaluates numerical risk, 
-            quantifies maximum fan-in and deep division chains, and rewrites source code in place.
-          </p>
-
-          <div className="flex flex-wrap gap-4 pt-2">
-            <button
-              className="btn-primary"
-              onClick={() => navigate('/workspace')}
-            >
-              Analyze C/C++ Source
-            </button>
-            <button
-              onClick={() => navigate('/ppt')}
-              className="btn-outline-dark text-xs flex items-center py-2.5 px-6"
-            >
-              View PPT
-            </button>
-          </div>
-        </motion.div>
-
-        <div className="relative">
-          <SelfAnalyzingCard />
         </div>
-      </section>
+      </LampContainer>
 
-      {/* Feature Showcase */}
-      <FeatureShowcase />
+      {/* Main Layout Area */}
+      <div className="max-w-7xl mx-auto px-6 space-y-20">
+        
+        {/* Feature Showcase */}
+        <FeatureShowcase />
 
-      {/* Stats Section */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { val: '06',       label: 'Heuristic Rules' },
-          { val: '0-100',    label: 'Safety Score' },
-          { val: 'FP16/BF16',label: 'Targets Supported' },
-          { val: 'SARIF 2.1',label: 'Standard Output' },
-        ].map(({ val, label }, i) => (
-          <ScrollCard key={label} delay={i * 0.05} className="nv-panel p-6 relative">
-            <div className="corner-square" />
-            <div className="text-2xl font-black text-white font-mono">{val}</div>
-            <div className="text-[11px] text-mute uppercase tracking-wider mt-1">{label}</div>
-          </ScrollCard>
-        ))}
-      </section>
-
-      {/* Pipeline Section */}
-      <section id="pipeline" className="space-y-8 py-8 border-t border-line">
-        <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-widest text-nv">Static Analysis Sequence</p>
-          <h2 className="text-2xl font-black uppercase tracking-wider text-white">Execution Pipeline</h2>
-        </div>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {PIPELINE_STEPS.map((step, i) => (
-            <ScrollCard key={step.label} delay={i * 0.04} className="nv-panel-hover p-6 relative group cursor-default">
-              <div className="corner-square opacity-40 group-hover:opacity-100 transition-opacity" />
-              <div className="flex items-center gap-3 mb-4">
-                <span
-                  className="font-mono text-xs rounded-none px-2 py-0.5 font-bold bg-[#1a1a1a] border border-line text-nv"
-                >
-                  {step.mark}
-                </span>
-                <span className="font-bold text-xs uppercase tracking-wider text-white">{step.label}</span>
-              </div>
-              <p className="text-xs text-body leading-relaxed">{step.desc}</p>
+        {/* Stats Section */}
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { val: '06',       label: 'Heuristic Rules' },
+            { val: '0-100',    label: 'Safety Score' },
+            { val: 'FP16/BF16',label: 'Targets Supported' },
+            { val: 'SARIF 2.1',label: 'Standard Output' },
+          ].map(({ val, label }, i) => (
+            <ScrollCard key={label} delay={i * 0.05} className="nv-panel p-6 relative overflow-hidden group">
+              <GlowingEffect disabled={false} glow={true} proximity={80} spread={40} borderWidth={1.5} />
+              <div className="corner-square" />
+              <div className="text-2xl font-black text-white font-mono relative z-10">{val}</div>
+              <div className="text-[11px] text-mute uppercase tracking-wider mt-1 relative z-10">{label}</div>
             </ScrollCard>
           ))}
-        </div>
-      </section>
+        </section>
 
-      {/* Safe / Retained Logic */}
-      <section className="grid md:grid-cols-2 gap-6 py-8 border-t border-line">
-        {[
-          {
-            title: 'SAFE DEMOTION PATHWAY',
-            text: 'Variables with shallow arithmetic chain depth, no constant updates exceeding range bounds (±65504), no division operations, and low overall fan-in are safely compiled down to ARM/half __fp16 or __bf16 targets.',
-            border: '#2a2a2a',
-          },
-          {
-            title: 'RETAINED FP32 PATHWAY',
-            text: 'Deep expression chains, division statements, accumulator patterns (e.g., sum updates inside loops), and potential numeric overflow zones are preserved at float level, each backed by explicit compiler pass diagnostics.',
-            border: '#2a2a2a',
-          },
-        ].map(({ title, text, border }, i) => (
-          <ScrollCard key={title} delay={i * 0.05}>
-            <div
-              className="nv-panel p-6 h-full relative"
-              style={{ borderColor: border }}
-            >
-              <div className="corner-square opacity-60" />
-              <p className="text-xs font-bold uppercase tracking-wider text-nv mb-3">{title}</p>
-              <p className="text-xs text-body leading-relaxed">{text}</p>
-            </div>
-          </ScrollCard>
-        ))}
-      </section>
+        {/* Pipeline Section */}
+        <section id="pipeline" className="space-y-8 py-8 border-t border-line">
+          <div className="space-y-2">
+            <p className="text-xs font-bold uppercase tracking-widest text-nv">Static Analysis Sequence</p>
+            <h2 className="text-2xl font-black uppercase tracking-wider text-white">Execution Pipeline</h2>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {PIPELINE_STEPS.map((step, i) => (
+              <ScrollCard key={step.label} delay={i * 0.04} className="nv-panel p-6 relative group cursor-default overflow-hidden">
+                <GlowingEffect disabled={false} glow={true} proximity={80} spread={45} borderWidth={1.5} />
+                <div className="corner-square opacity-40 group-hover:opacity-100 transition-opacity" />
+                <div className="flex items-center gap-3 mb-4 relative z-10">
+                  <span
+                    className="font-mono text-xs rounded-none px-2 py-0.5 font-bold bg-[#1a1a1a] border border-line text-nv"
+                  >
+                    {step.mark}
+                  </span>
+                  <span className="font-bold text-xs uppercase tracking-wider text-white">{step.label}</span>
+                </div>
+                <p className="text-xs text-body leading-relaxed relative z-10">{step.desc}</p>
+              </ScrollCard>
+            ))}
+          </div>
+        </section>
+
+        {/* Safe / Retained Logic */}
+        <section className="grid md:grid-cols-2 gap-6 py-8 border-t border-line">
+          {[
+            {
+              title: 'SAFE DEMOTION PATHWAY',
+              text: 'Variables with shallow arithmetic chain depth, no constant updates exceeding range bounds (±65504), no division operations, and low overall fan-in are safely compiled down to ARM/half __fp16 or __bf16 targets.',
+              border: '#2a2a2a',
+            },
+            {
+              title: 'RETAINED FP32 PATHWAY',
+              text: 'Deep expression chains, division statements, accumulator patterns (e.g., sum updates inside loops), and potential numeric overflow zones are preserved at float level, each backed by explicit compiler pass diagnostics.',
+              border: '#2a2a2a',
+            },
+          ].map(({ title, text, border }, i) => (
+            <ScrollCard key={title} delay={i * 0.05}>
+              <div
+                className="nv-panel p-6 h-full relative overflow-hidden"
+                style={{ borderColor: border }}
+              >
+                <GlowingEffect disabled={false} glow={true} proximity={80} spread={50} borderWidth={1.5} />
+                <div className="corner-square opacity-60" />
+                <p className="text-xs font-bold uppercase tracking-wider text-nv mb-3 relative z-10">{title}</p>
+                <p className="text-xs text-body leading-relaxed relative z-10">{text}</p>
+              </div>
+            </ScrollCard>
+          ))}
+        </section>
+
+      </div>
     </div>
   )
 }

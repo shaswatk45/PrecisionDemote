@@ -12,6 +12,8 @@ import RiskSkyline from '../components/RiskSkyline'
 import PresenterMode from '../components/PresenterMode'
 import CountUp from '../components/CountUp'
 import useScanReveal from '../lib/useScanReveal'
+import { GlowingEffect } from '../components/ui/glowing-effect'
+
 
 const TAB_VARIANTS = {
   initial: { opacity: 0, x: 28, filter: 'blur(6px)' },
@@ -137,11 +139,12 @@ export default function WorkspacePage({
       {/* Editor + Sidebar */}
       <div className="grid lg:grid-cols-[1.2fr_.8fr] gap-6">
         <motion.div
-          className="nv-panel hud-corners flex flex-col min-h-[480px] overflow-hidden bg-black"
+          className="nv-panel hud-corners flex flex-col min-h-[480px] overflow-hidden bg-black relative"
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
+          <GlowingEffect disabled={false} glow={true} proximity={80} spread={40} borderWidth={1.5} />
           <div className="flex items-center justify-between px-4 py-3"
             style={{ borderBottom: '1px solid #2a2a2a' }}>
             <span className="text-xs font-mono text-mute uppercase tracking-widest font-bold">input.cpp</span>
@@ -192,7 +195,8 @@ export default function WorkspacePage({
         >
           <ExamplesGallery examples={examples} onPick={(c) => { setCode(c); setMode('edit') }} />
 
-          <div className="nv-panel p-5 space-y-4 relative bg-black">
+          <div className="nv-panel p-5 space-y-4 relative bg-black overflow-hidden">
+            <GlowingEffect disabled={false} glow={true} proximity={80} spread={40} borderWidth={1.5} />
             <div className="corner-square opacity-60" />
             <p className="text-xs font-bold uppercase tracking-widest text-nv mb-1">Analysis Thresholds</p>
 
@@ -261,31 +265,34 @@ export default function WorkspacePage({
               key={`summary-${result.jobId || m.totalFloatVars}-${m.fp16Count}`}
               initial={{ opacity: 0, y: 10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              className="nv-panel hud-corners p-5 space-y-3 bg-black"
+              className="nv-panel hud-corners p-5 space-y-3 bg-black relative overflow-hidden"
             >
-              <p className="text-xs font-bold uppercase tracking-widest text-nv mb-2">Summary</p>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                {[
-                  ['__fp16', m.fp16Count,       'text-safe'],
-                  ['__bf16', m.bf16Count,       'text-warn'],
-                  ['kept',   m.keptFloatCount,  'text-unsafe'],
-                ].map(([label, val, color]) => (
-                  <div key={label} className="rounded-sm py-2 bg-surface-elevated/40 border border-line">
-                    <div className={`text-xl font-black font-mono ${color}`}>
-                      <CountUp value={val} duration={800} />
+              <GlowingEffect disabled={false} glow={true} proximity={80} spread={40} borderWidth={1.5} />
+              <p className="text-xs font-bold uppercase tracking-widest text-nv mb-2 relative z-10">Summary</p>
+              <div className="relative z-10 space-y-3">
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  {[
+                    ['__fp16', m.fp16Count,       'text-safe'],
+                    ['__bf16', m.bf16Count,       'text-warn'],
+                    ['kept',   m.keptFloatCount,  'text-unsafe'],
+                  ].map(([label, val, color]) => (
+                    <div key={label} className="rounded-sm py-2 bg-surface-elevated/40 border border-line">
+                      <div className={`text-xl font-black font-mono ${color}`}>
+                        <CountUp value={val} duration={800} />
+                      </div>
+                      <div className="text-[10px] text-mute font-mono uppercase tracking-wider">{label}</div>
                     </div>
-                    <div className="text-[10px] text-mute font-mono uppercase tracking-wider">{label}</div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+                <div className="flex justify-between text-[10px] text-mute pt-1 font-mono uppercase tracking-wider">
+                  <span>≈ <CountUp value={m.estimatedSpeedup} decimals={2} duration={900} />× speedup</span>
+                  <span><CountUp value={m.bytesSaved} duration={900} /> B saved</span>
+                  <span>score <CountUp value={m.avgSafetyScore} duration={900} /></span>
+                </div>
+                <p className={`text-[10px] uppercase font-bold tracking-wider ${result.engine === 'fallback-js' ? 'text-warn/80' : 'text-nv/80'}`}>
+                  {result.engine === 'fallback-js' ? 'JS fallback analyzer' : `Clang AST · tool v${result.toolVersion || '3.0'}`}
+                </p>
               </div>
-              <div className="flex justify-between text-[10px] text-mute pt-1 font-mono uppercase tracking-wider">
-                <span>≈ <CountUp value={m.estimatedSpeedup} decimals={2} duration={900} />× speedup</span>
-                <span><CountUp value={m.bytesSaved} duration={900} /> B saved</span>
-                <span>score <CountUp value={m.avgSafetyScore} duration={900} /></span>
-              </div>
-              <p className={`text-[10px] uppercase font-bold tracking-wider ${result.engine === 'fallback-js' ? 'text-warn/80' : 'text-nv/80'}`}>
-                {result.engine === 'fallback-js' ? 'JS fallback analyzer' : `Clang AST · tool v${result.toolVersion || '3.0'}`}
-              </p>
             </motion.div>
           )}
         </motion.div>

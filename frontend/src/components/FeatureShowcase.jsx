@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { RulerCarousel } from './RulerCarousel'
+import { GlowingEffect } from './ui/glowing-effect'
 
 const FEATURES = [
   {
@@ -69,6 +70,7 @@ export default function FeatureShowcase() {
       </div>
 
       <div className="nv-panel py-10 overflow-hidden relative">
+        <GlowingEffect disabled={false} glow={true} proximity={64} spread={40} borderWidth={1.5} />
         <div className="corner-square" />
         <RulerCarousel
           originalItems={FEATURES.map((x) => ({ id: x.id, title: x.title }))}
