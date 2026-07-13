@@ -167,7 +167,7 @@ export default function HomePage() {
           <div className="flex flex-wrap gap-4 pt-2">
             <button
               className="btn-primary"
-              onClick={() => navigate('/analysis')}
+              onClick={() => navigate('/workspace')}
             >
               Analyze C/C++ Source
             </button>
