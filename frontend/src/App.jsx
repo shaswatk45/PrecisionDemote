@@ -12,6 +12,7 @@ import MetricsPage from './pages/MetricsPage'
 import SimulatorPage from './pages/SimulatorPage'
 import DocsPage from './pages/DocsPage'
 import SlidesPage from './pages/SlidesPage'
+import StepByStepPage from './pages/StepByStepPage'
 import { fallbackAnalysis, computeMetrics, EXAMPLES } from './lib/analyzer'
 
 
@@ -130,6 +131,7 @@ export default function App() {
             <Route path="/simulator" element={<SimulatorPage code={code} />} />
             <Route path="/docs" element={<DocsPage />} />
             <Route path="/ppt" element={<SlidesPage />} />
+            <Route path="/step-by-step" element={<StepByStepPage />} />
           </Routes>
         </ErrorBoundary>
       </main>

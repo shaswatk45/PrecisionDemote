@@ -27,6 +27,7 @@ export default function Navbar() {
             { path: '/', label: 'Home' },
             { path: '/workspace', label: 'Workspace' },
             { path: '/visualizer', label: 'Dependency Graph' },
+            { path: '/step-by-step', label: 'Step By Step' },
             { path: '/metrics', label: 'Metrics' },
             { path: '/simulator', label: 'Simulator' },
             { path: '/ppt', label: 'Project PPT' },

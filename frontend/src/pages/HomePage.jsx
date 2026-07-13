@@ -166,6 +166,12 @@ export default function HomePage() {
                 Analyze C/C++ Source
               </button>
               <button
+                onClick={() => navigate('/step-by-step')}
+                className="btn-outline-dark text-xs flex items-center py-2.5 px-6 relative"
+              >
+                Step By Step
+              </button>
+              <button
                 onClick={() => navigate('/ppt')}
                 className="btn-outline-dark text-xs flex items-center py-2.5 px-6 relative"
               >
