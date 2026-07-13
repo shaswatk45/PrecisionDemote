@@ -418,7 +418,7 @@ export default function SlidesPage() {
   ]
 
   const next = () => setSlide((s) => Math.min(s + 1, slides.length - 1))
-  const prev = () => setSlide((s) => Math.max(s - 0, 0))
+  const prev = () => setSlide((s) => Math.max(s - 1, 0))
 
   useEffect(() => {
     const onKey = (e) => {

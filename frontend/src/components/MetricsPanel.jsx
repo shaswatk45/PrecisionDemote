@@ -35,6 +35,7 @@ export default function MetricsPanel({ metrics, analysis }) {
     totalFloatVars, fp16Count = 0, bf16Count = 0, keptFloatCount = 0,
     demotionRate, memorySavedPercent, avgSafetyScore = 0,
     maxErrorBound = 0, estimatedSpeedup = 1, bytesSaved = 0,
+    rooflineBound = 'N/A', simdHint = 'No SIMD benefit', dataFlowComplexity = 0
   } = metrics
 
   const allNodes = (analysis?.functions || []).flatMap((f) => f.nodes || [])
