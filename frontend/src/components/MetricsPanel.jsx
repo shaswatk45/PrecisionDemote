@@ -56,6 +56,9 @@ export default function MetricsPanel({ metrics, analysis }) {
     ['Memory saved', <CountUp key="m" value={memorySavedPercent} decimals={1} suffix="%" duration={1100} />, `${bytesSaved} bytes/invocation`, 'text-safe'],
     ['Max rel. error', <CountUp key="e" value={maxErrorBound * 100} decimals={3} suffix="%" duration={1100} />, 'worst-case demoted var', 'text-warn'],
     ['Demotion rate', <CountUp key="d" value={demotionRate} decimals={1} suffix="%" duration={1100} />, `${fp16Count + bf16Count}/${totalFloatVars} narrowed`, 'text-nv'],
+    ['Roofline Bound', <span key="r" className="text-xs font-bold leading-tight block truncate" title={rooflineBound}>{rooflineBound.split('(')[0] || 'N/A'}</span>, rooflineBound.includes('(') ? rooflineBound.split('(')[1].replace(')','') : 'AI char', 'text-safe'],
+    ['SIMD Hint', <span key="v" className="text-[10px] font-bold leading-tight block whitespace-normal mt-1">{simdHint}</span>, 'Hardware Vectorization', 'text-nv'],
+    ['DFG Complexity', <CountUp key="c" value={dataFlowComplexity} suffix=" nodes" duration={1100} />, 'AST Flow', 'text-white'],
   ]
 
   return (
