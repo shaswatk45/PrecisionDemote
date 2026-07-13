@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 import toast from 'react-hot-toast'
+import { toSarif } from '../lib/analyzer'
+
 
 function saveBlob(content, filename, type) {
   const blob = new Blob([content], { type })
@@ -43,10 +45,18 @@ export default function ExportMenu({ analysis, code }) {
       const { data } = await axios.post('/api/sarif', { code, filename: 'input.cpp' })
       saveBlob(JSON.stringify(data, null, 2), 'precision-demote.sarif', 'application/sarif+json')
       toast.success('SARIF log saved')
-    } catch {
-      toast.error('SARIF export failed')
+    } catch (err) {
+      try {
+        const sarifData = toSarif(analysis, 'input.cpp')
+        saveBlob(JSON.stringify(sarifData, null, 2), 'precision-demote.sarif', 'application/sarif+json')
+        toast.success('SARIF log saved (local)')
+      } catch (localErr) {
+        console.error('Local SARIF generation failed:', localErr)
+        toast.error('SARIF export failed')
+      }
     }
   }
+
 
   const items = [
     ['Rewritten source (.cpp)', 'Mixed __fp16 / __bf16 output', exportRewritten],

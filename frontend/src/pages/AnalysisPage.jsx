@@ -16,6 +16,7 @@ import PresenterMode from '../components/PresenterMode'
 import CountUp from '../components/CountUp'
 import useScanReveal from '../lib/useScanReveal'
 import SimulationPanel from '../components/SimulationPanel'
+import { fallbackAnalysis, computeMetrics } from '../lib/analyzer'
 
 const DEMO_CODE = `float dot_product(float* a, float* b, int n) {
     float sum = 0.0f;
@@ -139,11 +140,21 @@ export default function AnalysisPage() {
       setActiveTab('annotated')
       if (!opts.silent) toast.success('Analysis complete')
     } catch (err) {
-      const rawError = err.response?.data?.error
-      const errorMsg = typeof rawError === 'object' && rawError
-        ? (rawError.message || JSON.stringify(rawError))
-        : (rawError || err.message || 'Backend error. Is the server running?')
-      toast.error(errorMsg)
+      console.warn('Backend unavailable, running analysis locally in browser:', err)
+      try {
+        const localResult = fallbackAnalysis(code, 'input.cpp', { maxDepth, maxFanIn })
+        localResult.metrics = computeMetrics(localResult)
+        setResult(localResult)
+        setActiveTab('annotated')
+        if (!opts.silent) toast.success('Analysis complete (local browser-side)')
+      } catch (localErr) {
+        console.error('Local analyzer failed:', localErr)
+        const rawError = err.response?.data?.error
+        const errorMsg = typeof rawError === 'object' && rawError
+          ? (rawError.message || JSON.stringify(rawError))
+          : (rawError || err.message || 'Backend error. Is the server running?')
+        toast.error(errorMsg)
+      }
     } finally {
       setLoading(false)
     }
