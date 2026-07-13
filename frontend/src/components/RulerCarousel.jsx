@@ -96,8 +96,10 @@ export function RulerCarousel({ originalItems, onActiveChange, initialIndex = 4 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isResetting, activeIndex])
 
-  const centerPosition = 5
-  const targetX = -500 + (centerPosition - (activeIndex % itemsPerSet)) * 500
+  const itemWidth = 400
+  const itemGap = 100
+  const advanceWidth = itemWidth + itemGap
+  const targetX = -(activeIndex * advanceWidth + itemWidth / 2)
 
   const currentPage = (activeIndex % itemsPerSet) + 1
   const totalPages = itemsPerSet
@@ -107,9 +109,10 @@ export function RulerCarousel({ originalItems, onActiveChange, initialIndex = 4 
       <div className="w-full h-[180px] flex flex-col justify-center relative">
         <div className="flex items-center justify-center"><RulerLines top /></div>
 
-        <div className="flex items-center justify-center w-full h-full relative overflow-hidden">
+        <div className="flex items-center w-full h-full relative overflow-hidden">
           <motion.div
-            className="flex items-center gap-[100px]"
+            className="absolute left-1/2 flex items-center"
+            style={{ gap: `${itemGap}px` }}
             animate={{ x: targetX }}
             transition={isResetting ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 20, mass: 1 }}
           >
