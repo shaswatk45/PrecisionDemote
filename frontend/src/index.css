@@ -12,79 +12,108 @@
   }
 
   body {
-    @apply bg-surface-900 text-gray-100 font-sans;
-    background:
-      linear-gradient(135deg, rgba(99, 102, 241, 0.12), transparent 34%),
-      linear-gradient(225deg, rgba(20, 184, 166, 0.08), transparent 36%),
-      #05070d;
+    @apply bg-surface-dark text-ink font-sans;
     min-height: 100vh;
   }
 
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { @apply bg-surface-800; }
-  ::-webkit-scrollbar-thumb { @apply bg-accent/50 rounded-full; }
-  ::-webkit-scrollbar-thumb:hover { @apply bg-accent; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: #000000; }
+  ::-webkit-scrollbar-thumb { background: #3d3d3d; border-radius: 0px; }
+  ::-webkit-scrollbar-thumb:hover { background: #76b900; }
 }
 
 @layer components {
-  .glass {
-    @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-lg;
+  /* Flat angular panel layout - no glassmorphism / bubble styles */
+  .nv-panel {
+    background: #0d0d0d;
+    border: 1px solid #2a2a2a;
+    border-radius: 2px;
   }
 
-  .glass-hover {
-    @apply glass transition-all duration-300 hover:bg-white/10 hover:border-white/20;
+  .nv-panel-hover {
+    background: #0d0d0d;
+    border: 1px solid #2a2a2a;
+    border-radius: 2px;
+    transition: all 0.2s ease;
+  }
+  .nv-panel-hover:hover {
+    border-color: #76b900;
+    background: #121212;
   }
 
   .btn-primary {
-    @apply px-6 py-3 rounded-lg bg-accent hover:bg-accent-dark text-white font-semibold
-           transition-all duration-200 shadow-glow-accent hover:shadow-lg
-           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply px-6 py-2.5 rounded-sm font-bold text-black text-sm uppercase tracking-wider
+           transition-all duration-200 active:scale-95
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    background: #76b900;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: #5a8d00;
   }
 
   .btn-ghost {
-    @apply px-5 py-2.5 rounded-lg border border-white/20 hover:border-accent/60
-           hover:bg-accent/10 text-gray-300 hover:text-white font-medium
+    @apply px-5 py-2.5 rounded-sm border text-ink font-bold text-sm uppercase tracking-wider
            transition-all duration-200 active:scale-95;
+    border-color: #76b900;
+    background: transparent;
+  }
+  .btn-ghost:hover {
+    border-color: #5a8d00;
+    background: rgba(118, 185, 0, 0.08);
+  }
+
+  .btn-outline-dark {
+    @apply px-5 py-2.5 rounded-sm border text-ink font-bold text-sm uppercase tracking-wider
+           transition-all duration-200 active:scale-95;
+    border-color: #3d3d3d;
+    background: transparent;
+  }
+  .btn-outline-dark:hover {
+    border-color: #76b900;
+    background: rgba(255, 255, 255, 0.05);
   }
 
   .tag-safe {
-    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-sm text-xs font-semibold
            bg-safe/10 text-safe border border-safe/30;
   }
 
   .tag-unsafe {
-    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-sm text-xs font-semibold
            bg-unsafe/10 text-unsafe border border-unsafe/30;
   }
 
   .metric-card {
-    @apply glass p-5 flex flex-col gap-1.5 transition-transform duration-200 hover:scale-[1.02];
+    @apply nv-panel p-5 flex flex-col gap-1.5 transition-transform duration-200 hover:scale-[1.01];
   }
 
   .section-title {
-    @apply text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4;
+    @apply text-xs font-bold uppercase tracking-widest mb-4;
+    color: #76b900;
   }
 
   .code-block {
-    @apply font-mono text-sm leading-relaxed overflow-auto rounded-lg;
+    @apply font-mono text-sm leading-relaxed overflow-auto rounded-sm;
   }
 
   .node-safe {
-    @apply bg-safe/10 border border-safe/40 text-safe shadow-glow-safe;
+    @apply bg-safe/10 border border-safe/30 text-safe shadow-safe-glow;
   }
 
   .node-unsafe {
-    @apply bg-unsafe/10 border border-unsafe/40 text-unsafe shadow-glow-unsafe;
+    @apply bg-unsafe/10 border border-unsafe/30 text-unsafe shadow-keep-glow;
   }
 
   .spinner {
-    @apply animate-spin rounded-full border-2 border-white/20 border-t-accent;
+    @apply animate-spin rounded-full border-2;
+    border-color: rgba(118, 185, 0, 0.1);
+    border-top-color: #76b900;
   }
 }
 
 @layer utilities {
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-accent-light via-safe to-accent;
+    color: #ffffff;
   }
 
   .animate-pulse-slow {
@@ -100,13 +129,15 @@
   }
 
   .transition-smooth {
-    @apply transition-all duration-300 ease-in-out;
+    @apply transition-all duration-200 ease-in-out;
   }
 }
 
+/* ── Keyframes ────────────────────────────────────────────────────────────── */
+
 @keyframes float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  50% { transform: translateY(-4px); }
 }
 
 @keyframes scan {
@@ -116,33 +147,19 @@
 }
 
 /* ── Monaco analysis decorations ─────────────────────────────────────────── */
-.pd-line-fp16 { background: rgba(20, 184, 166, 0.10); animation: pd-ignite-fp16 0.6s ease-out; }
-.pd-line-bf16 { background: rgba(245, 158, 11, 0.10); animation: pd-ignite-bf16 0.6s ease-out; }
-.pd-line-keep { background: rgba(244, 63, 94, 0.07); animation: pd-ignite-keep 0.6s ease-out; }
-
-/* Line "ignition" — a bright flash that settles into the resting tint. */
-@keyframes pd-ignite-fp16 {
-  0% { background: rgba(20, 184, 166, 0.45); }
-  100% { background: rgba(20, 184, 166, 0.10); }
-}
-@keyframes pd-ignite-bf16 {
-  0% { background: rgba(245, 158, 11, 0.45); }
-  100% { background: rgba(245, 158, 11, 0.10); }
-}
-@keyframes pd-ignite-keep {
-  0% { background: rgba(244, 63, 94, 0.40); }
-  100% { background: rgba(244, 63, 94, 0.07); }
-}
+.pd-line-fp16 { background: rgba(20, 184, 166, 0.08); }
+.pd-line-bf16 { background: rgba(245, 158, 11, 0.08); }
+.pd-line-keep { background: rgba(244, 63, 94, 0.05); }
 
 .pd-glyph-fp16, .pd-glyph-bf16, .pd-glyph-keep {
-  width: 3px !important;
-  margin-left: 3px;
+  width: 2px !important;
+  margin-left: 2px;
 }
 .pd-glyph-fp16 { background: #14b8a6; }
 .pd-glyph-bf16 { background: #f59e0b; }
 .pd-glyph-keep { background: #f43f5e; }
 
-/* Radial gauge label centering */
+/* Center labels */
 .gauge-center {
   position: absolute;
   inset: 0;
@@ -153,88 +170,65 @@
   pointer-events: none;
 }
 
-/* ── HUD / instrument aesthetic ──────────────────────────────────────────── */
-
-/* Corner brackets — draws thin measurement ticks on a panel's four corners. */
+/* ── HUD Ticks - clean technical corners ─────────────────────────────────── */
 .hud-corners { position: relative; }
 .hud-corners::before,
 .hud-corners::after {
   content: '';
   position: absolute;
-  width: 14px;
-  height: 14px;
+  width: 8px;
+  height: 8px;
   pointer-events: none;
-  opacity: 0.55;
+  opacity: 0.8;
 }
 .hud-corners::before {
-  top: 6px; left: 6px;
-  border-top: 1.5px solid rgba(129, 140, 248, 0.8);
-  border-left: 1.5px solid rgba(129, 140, 248, 0.8);
+  top: 0px; left: 0px;
+  border-top:  2px solid #76b900;
+  border-left: 2px solid #76b900;
 }
 .hud-corners::after {
-  bottom: 6px; right: 6px;
-  border-bottom: 1.5px solid rgba(129, 140, 248, 0.8);
-  border-right: 1.5px solid rgba(129, 140, 248, 0.8);
+  bottom: 0px; right: 0px;
+  border-bottom: 2px solid #76b900;
+  border-right:  2px solid #76b900;
 }
 
-/* Faint CRT scanlines for HUD surfaces (very subtle). */
+/* Faint scanlines */
 .hud-scanlines {
   background-image: repeating-linear-gradient(
     0deg,
-    rgba(255, 255, 255, 0.015) 0px,
-    rgba(255, 255, 255, 0.015) 1px,
+    rgba(255, 255, 255, 0.005) 0px,
+    rgba(255, 255, 255, 0.005) 1px,
     transparent 1px,
-    transparent 3px
+    transparent 4px
   );
 }
 
-/* The compiler-pass scanline that sweeps down the code. */
+/* Compiler-pass scanline */
 .pd-scanline {
   position: absolute;
   left: 0; right: 0;
-  height: 44px;
+  height: 24px;
   pointer-events: none;
   z-index: 20;
   background: linear-gradient(
     to bottom,
     transparent,
-    rgba(129, 140, 248, 0.12) 35%,
-    rgba(129, 140, 248, 0.30) 50%,
-    rgba(129, 140, 248, 0.12) 65%,
+    rgba(118, 185, 0, 0.05) 35%,
+    rgba(118, 185, 0, 0.15) 50%,
+    rgba(118, 185, 0, 0.05) 65%,
     transparent
   );
-  border-top: 1px solid rgba(129, 140, 248, 0.25);
-  border-bottom: 1px solid rgba(129, 140, 248, 0.55);
-  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.35);
+  border-top:    1px solid rgba(118, 185, 0, 0.1);
+  border-bottom: 1px solid rgba(118, 185, 0, 0.25);
 }
 
-/* Risk skyline rows — dangerous lines pulse. */
-@keyframes pd-risk-pulse {
-  0%, 100% { opacity: 0.55; box-shadow: 0 0 4px rgba(244, 63, 94, 0.4); }
-  50% { opacity: 1; box-shadow: 0 0 12px rgba(244, 63, 94, 0.9); }
-}
-.pd-risk-row { animation: pd-risk-pulse 1.6s ease-in-out infinite; }
-
-/* Overflow gauge redline shake. */
-@keyframes pd-redline {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-2px); }
-  40% { transform: translateX(2px); }
-  60% { transform: translateX(-1.5px); }
-  80% { transform: translateX(1.5px); }
-}
-.pd-redline { animation: pd-redline 0.4s ease-in-out 2; }
-
-/* Telemetry status light. */
-@keyframes pd-telemetry {
-  0%, 100% { box-shadow: 0 0 4px 1px currentColor; opacity: 1; }
-  50% { box-shadow: 0 0 10px 3px currentColor; opacity: 0.75; }
-}
-.pd-telemetry-dot { animation: pd-telemetry 2s ease-in-out infinite; }
-
-/* Preloader progress shimmer. */
-@keyframes pd-progress-glow {
-  0% { filter: brightness(1); }
-  50% { filter: brightness(1.5); }
-  100% { filter: brightness(1); }
+/* Corner square motif */
+.corner-square {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #76b900;
+  top: 0;
+  left: 0;
+  z-index: 10;
 }

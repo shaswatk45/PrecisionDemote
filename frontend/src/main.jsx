@@ -13,13 +13,18 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         position="top-right"
         toastOptions={{
           style: {
-            background: '#1a2235',
-            color: '#e2e8f0',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: '12px',
+            background: '#0d0d0d',
+            color: '#ffffff',
+            border: '1px solid #2a2a2a',
+            borderRadius: '2px',
+            fontFamily: 'Barlow, sans-serif',
+            fontSize: '12px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            fontWeight: 'bold',
           },
-          success: { iconTheme: { primary: '#22d3ee', secondary: '#0b0f1a' } },
-          error:   { iconTheme: { primary: '#f43f5e', secondary: '#0b0f1a' } },
+          success: { iconTheme: { primary: '#76b900', secondary: '#000000' } },
+          error:   { iconTheme: { primary: '#f43f5e', secondary: '#000000' } },
         }}
       />
     </HashRouter>

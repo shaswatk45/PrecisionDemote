@@ -1,61 +1,36 @@
 import { useState } from 'react'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import toast from 'react-hot-toast'
 
-function highlightFP16Lines(code) {
-  return code.split('\n').reduce((acc, line, idx) => {
-    if (line.includes('__fp16')) acc.push(idx + 1)
-    return acc
-  }, [])
-}
-
-const SyntaxPanel = ({ code, title, badge, badgeClass }) => {
-  const fp16Lines = highlightFP16Lines(code)
+function SyntaxPanel({ code, title, badge, badgeClass }) {
   return (
-    <div className="flex flex-col flex-1 min-w-0">
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10">
-        <span className="text-xs text-gray-400 font-mono">{title}</span>
-        {badge && <span className={`ml-auto text-xs px-2.5 py-0.5 rounded-full font-semibold ${badgeClass}`}>{badge}</span>}
+    <div className="flex-1 flex flex-col min-w-[320px]">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-line bg-surface-dark">
+        <span className="text-xs font-mono text-mute uppercase tracking-wider">{title}</span>
+        {badge && (
+          <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-sm ${badgeClass}`}>
+            {badge}
+          </span>
+        )}
       </div>
-      <div className="relative flex-1 overflow-auto">
-        <SyntaxHighlighter
-          language="cpp"
-          style={vscDarkPlus}
-          customStyle={{ margin: 0, background: 'transparent', fontSize: '13px', lineHeight: '1.7', padding: '1rem' }}
-          wrapLines
-          showLineNumbers
-          lineNumberStyle={{ color: '#374151', fontSize: '11px' }}
-          lineProps={(lineNum) => {
-            const style = {}
-            if (fp16Lines.includes(lineNum)) {
-              style.background = 'rgba(20,184,166,0.08)'
-              style.borderLeft = '2px solid rgba(20,184,166,0.7)'
-              style.paddingLeft = '6px'
-            }
-            return { style }
-          }}
-        >
-          {code}
-        </SyntaxHighlighter>
-      </div>
+      <pre className="code-block flex-1 p-4 text-xs font-mono text-mute overflow-auto bg-black leading-relaxed">
+        <code>{code}</code>
+      </pre>
     </div>
   )
 }
 
 export default function CodeDiff({ original, rewritten }) {
   const [view, setView] = useState('split')
-  const changed = original !== rewritten
-  const fp16Count = (rewritten.match(/__fp16/g) || []).length
 
-  const copyRewritten = async () => {
-    try {
-      await navigator.clipboard.writeText(rewritten)
-      toast.success('Rewritten source copied')
-    } catch {
-      toast.error('Clipboard not available')
-    }
+  const copyRewritten = () => {
+    navigator.clipboard.writeText(rewritten)
+    toast.success('Copied rewritten code to clipboard')
   }
+
+  const origCount = (original.match(/float\s/g) || []).length
+  const rewCount = (rewritten.match(/float\s/g) || []).length
+  const fp16Count = origCount - rewCount
+  const changed = fp16Count > 0
 
   const downloadRewritten = () => {
     const blob = new Blob([rewritten], { type: 'text/x-c++src' })
@@ -71,15 +46,16 @@ export default function CodeDiff({ original, rewritten }) {
   }
 
   return (
-    <div className="glass overflow-hidden flex flex-col">
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 flex-wrap">
-        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Source Comparison</span>
+    <div className="nv-panel overflow-hidden flex flex-col relative">
+      <div className="corner-square" />
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-line flex-wrap bg-[#050505]">
+        <span className="text-xs font-bold text-ink uppercase tracking-wider">Source Comparison</span>
         {changed ? (
-          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-safe/10 border border-safe/30 text-safe font-semibold">
+          <span className="text-[10px] px-2.5 py-0.5 rounded-sm bg-safe/10 border border-safe/30 text-safe font-bold uppercase tracking-wider">
             {fp16Count} __fp16 substitution{fp16Count !== 1 ? 's' : ''}
           </span>
         ) : (
-          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-gray-500/20 border border-gray-500/30 text-gray-400">No changes</span>
+          <span className="text-[10px] px-2.5 py-0.5 rounded-sm bg-[#1a1a1a] border border-line text-stone uppercase tracking-wider">No changes</span>
         )}
         <div className="flex gap-2 ml-auto">
           {[
@@ -90,40 +66,40 @@ export default function CodeDiff({ original, rewritten }) {
             <button
               key={id}
               onClick={() => setView(id)}
-              className={`text-xs px-3 py-1.5 rounded-lg transition-all ${view === id ? 'bg-accent/20 text-accent border border-accent/40' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+              className={`text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-sm transition-all ${view === id ? 'bg-nv text-black' : 'text-mute hover:text-white'}`}
             >
               {label}
             </button>
           ))}
-          <div className="w-px bg-white/10 mx-1" aria-hidden="true" />
+          <div className="w-px bg-line mx-1" aria-hidden="true" />
           <button
             onClick={copyRewritten}
             aria-label="Copy rewritten source to clipboard"
-            className="text-xs px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+            className="text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-sm text-mute hover:text-white"
           >
             Copy
           </button>
           <button
             onClick={downloadRewritten}
             aria-label="Download rewritten source file"
-            className="text-xs px-3 py-1.5 rounded-lg bg-safe/15 text-safe border border-safe/30 hover:bg-safe/25 transition-all"
+            className="text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-sm bg-nv/10 border border-nv/30 text-nv hover:bg-nv/20 transition-all"
           >
             Download
           </button>
         </div>
       </div>
 
-      <div className={`flex ${view === 'split' ? 'gap-0 divide-x divide-white/10' : ''} overflow-auto min-h-[400px] max-h-[600px]`}>
+      <div className={`flex ${view === 'split' ? 'gap-0 divide-x divide-line' : ''} overflow-auto min-h-[400px] max-h-[600px]`}>
         {(view === 'split' || view === 'original') && <SyntaxPanel code={original} title="original.cpp - FP32" badge="float" badgeClass="bg-unsafe/10 border border-unsafe/30 text-unsafe" />}
         {(view === 'split' || view === 'rewritten') && <SyntaxPanel code={rewritten} title="rewritten.cpp - FP16 demoted" badge="__fp16" badgeClass="bg-safe/10 border border-safe/30 text-safe" />}
       </div>
 
-      <div className="px-4 py-2.5 border-t border-white/10 text-[11px] text-gray-500 flex gap-4">
+      <div className="px-4 py-2.5 border-t border-line text-[10px] uppercase font-bold tracking-wider text-mute flex gap-4 bg-[#050505] font-mono">
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-2 rounded bg-safe/20 border-l-2 border-safe/60" />
+          <div className="w-3 h-2 rounded-sm bg-safe/20 border-l-2 border-safe/60" />
           Lines with __fp16 demotion
         </div>
-        <div className="ml-auto">FP16 uses 2 bytes vs FP32's 4 bytes.</div>
+        <div className="ml-auto lowercase font-normal">FP16 uses 2 bytes vs FP32's 4 bytes.</div>
       </div>
     </div>
   )

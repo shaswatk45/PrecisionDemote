@@ -1,21 +1,15 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 
-// Real-build-style boot lines — each appears in sequence with its progress.
 const BOOT_LINES = [
-  { pct: 12, text: 'linking LLVM 18.1.3 · libclang-cpp.so' },
-  { pct: 38, text: 'loading Clang AST engine' },
-  { pct: 64, text: 'calibrating FP16 unit roundoff (2^-11)' },
-  { pct: 86, text: 'indexing safety rules [6/6]' },
-  { pct: 100, text: 'precision-demote ready.' },
+  { pct: 12, text: 'initializing nvidia-emea typeface and layout engine' },
+  { pct: 38, text: 'checking clang ast compiler binary via local wsl' },
+  { pct: 64, text: 'caching float-to-fp16 translation rules [6/6]' },
+  { pct: 86, text: 'loading design tokens and surface boundaries' },
+  { pct: 100, text: 'precision demote ready.' },
 ]
-const STEP_MS = 320
+const STEP_MS = 250
 
-/**
- * "Compiling…" boot gate. Plays once per browser session (sessionStorage),
- * ~1.8s of build log + progress bar, then lifts to reveal the app. Sets a
- * serious, cinematic tone before anything is clicked.
- */
 export default function Preloader() {
   const [visible, setVisible] = useState(() => {
     try { return !sessionStorage.getItem('pd-booted') } catch { return true }
@@ -26,12 +20,11 @@ export default function Preloader() {
   useEffect(() => {
     if (!visible) return
     if (step >= BOOT_LINES.length) {
-      // State-driven fade-out — never depends on an exit animation completing.
-      const t1 = setTimeout(() => setFading(true), 420)
+      const t1 = setTimeout(() => setFading(true), 300)
       const t2 = setTimeout(() => {
         setVisible(false)
         try { sessionStorage.setItem('pd-booted', '1') } catch { /* private mode */ }
-      }, 1000)
+      }, 700)
       return () => { clearTimeout(t1); clearTimeout(t2) }
     }
     const t = setTimeout(() => setStep((s) => s + 1), STEP_MS)
@@ -45,36 +38,35 @@ export default function Preloader() {
       {visible && (
         <motion.div
           animate={{ opacity: fading ? 0 : 1 }}
-          transition={{ duration: 0.5, ease: 'easeInOut' }}
-          className="fixed inset-0 z-[200] bg-[#05070d] hud-scanlines flex items-center justify-center"
+          transition={{ duration: 0.4, ease: 'easeInOut' }}
+          className="fixed inset-0 z-[200] bg-black flex items-center justify-center font-sans"
         >
-          <div className="w-[420px] max-w-[85vw] space-y-5">
+          <div className="w-[400px] max-w-[85vw] space-y-6">
             <div className="flex items-center gap-3">
-              <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-safe via-accent to-unsafe flex items-center justify-center text-[11px] font-bold text-white">16</span>
-              <span className="font-mono text-sm text-gray-300 tracking-wider">precision-demote <span className="text-gray-600">v3</span></span>
-              <span className="ml-auto font-mono text-xs text-accent-light">{pct}%</span>
+              <span className="w-6 h-6 rounded-sm bg-nv flex items-center justify-center text-[10px] font-bold text-black font-mono">16</span>
+              <span className="font-mono text-xs text-ink uppercase tracking-widest">precision demote</span>
+              <span className="ml-auto font-mono text-xs text-nv">{pct}%</span>
             </div>
 
             {/* Build-style progress bar */}
-            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+            <div className="h-1 bg-surface-elevated overflow-hidden rounded-sm">
               <motion.div
-                className="h-full rounded-full bg-gradient-to-r from-accent to-safe"
+                className="h-full bg-nv"
                 animate={{ width: `${pct}%` }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
-                style={{ boxShadow: '0 0 12px rgba(99,102,241,0.7)', animation: 'pd-progress-glow 1s ease-in-out infinite' }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
               />
             </div>
 
             {/* Boot log */}
-            <div className="font-mono text-[11px] space-y-1.5 min-h-[96px]">
+            <div className="font-mono text-[11px] space-y-2 min-h-[96px] text-mute uppercase">
               {BOOT_LINES.slice(0, step).map((l, i) => (
                 <motion.div
                   key={l.text}
-                  initial={{ opacity: 0, x: -8 }}
+                  initial={{ opacity: 0, x: -4 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className={i === BOOT_LINES.length - 1 && step >= BOOT_LINES.length ? 'text-safe' : 'text-gray-500'}
+                  className={i === BOOT_LINES.length - 1 && step >= BOOT_LINES.length ? 'text-nv' : 'text-mute'}
                 >
-                  <span className="text-gray-700">[{String(l.pct).padStart(3, ' ')}%]</span> {l.text}
+                  <span className="text-stone">[{String(l.pct).padStart(3, ' ')}%]</span> {l.text}
                 </motion.div>
               ))}
             </div>

@@ -5,14 +5,20 @@ export default function Navbar() {
   const { pathname } = useLocation()
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 backdrop-blur-xl bg-surface-900/75">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-safe via-accent to-unsafe flex items-center justify-center text-sm font-bold shadow-glow-accent">
+    <header className="sticky top-0 z-50 border-b bg-surface-dark border-line h-16"
+      style={{
+        boxShadow: '0 1px 0 0 #2a2a2a',
+      }}
+    >
+      <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-3 group">
+          <div
+            className="w-7 h-7 rounded-sm flex items-center justify-center text-xs font-bold text-black transition-all duration-200 group-hover:bg-nv-dark bg-nv"
+          >
             16
           </div>
-          <span className="font-bold text-lg tracking-tight">
-            Precision<span className="text-gradient">Demote</span>
+          <span className="font-bold text-lg tracking-tight uppercase font-sans">
+            Precision<span className="text-nv">Demote</span>
           </span>
         </Link>
 
@@ -24,12 +30,20 @@ export default function Navbar() {
             <Link
               key={path}
               to={path}
-              className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${pathname === path ? 'text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+              className={`relative px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+                pathname === path
+                  ? 'text-white'
+                  : 'text-mute hover:text-white hover:bg-white/5'
+              }`}
             >
               {pathname === path && (
                 <motion.div
                   layoutId="nav-indicator"
-                  className="absolute inset-0 rounded-lg bg-accent/20 border border-accent/30"
+                  className="absolute inset-0 rounded-sm"
+                  style={{
+                    background: 'rgba(118, 185, 0, 0.1)',
+                    border: '1px solid #76b900',
+                  }}
                   transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                 />
               )}
@@ -41,7 +55,7 @@ export default function Navbar() {
             href="https://clang.llvm.org/docs/LibTooling.html"
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-ghost text-sm ml-2 hidden sm:inline-flex"
+            className="btn-outline-dark text-xs ml-2 hidden sm:inline-flex px-3 py-1.5"
           >
             Docs
           </a>

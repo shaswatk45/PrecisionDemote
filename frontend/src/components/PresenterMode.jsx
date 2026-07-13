@@ -26,7 +26,8 @@ function CodeCinema({ source, nodes }) {
   }, [visibleNodes])
 
   return (
-    <div className="relative rounded-xl border border-white/10 bg-[#0a0e17] overflow-hidden hud-scanlines">
+    <div className="relative rounded-sm border border-line bg-[#0d0d0d] overflow-hidden hud-scanlines">
+      <div className="corner-square" />
       {scanning && (
         <div className="pd-scanline" style={{ top: `calc(${(progress * 100).toFixed(2)}% - 22px)` }} />
       )}
@@ -37,7 +38,7 @@ function CodeCinema({ source, nodes }) {
           return (
             <div
               key={i}
-              className="px-3 -mx-3 rounded transition-colors duration-500"
+              className="px-3 -mx-3 rounded-none transition-colors duration-500"
               style={col ? { background: `${col}1f`, borderLeft: `2px solid ${col}`, color: '#e2e8f0' } : { color: '#94a3b8', borderLeft: '2px solid transparent' }}
             >
               <span className="inline-block w-8 text-right mr-4 text-gray-600 select-none">{i + 1}</span>
@@ -75,8 +76,6 @@ export default function PresenterMode({ analysis, code, onClose }) {
   )
   const m = analysis?.metrics
 
-  // The most dramatic variable for the gauntlet beat: an overflow→BF16
-  // redirect if one exists, else the first blocked var, else the first var.
   const gauntletNode = useMemo(() => {
     if (!allNodes.length) return null
     return allNodes.find((n) => n.blockReason === 'overflow')
@@ -126,7 +125,8 @@ export default function PresenterMode({ analysis, code, onClose }) {
                 ['memory cut', m?.memorySavedPercent ?? 0, '%', '#818cf8'],
                 ['est. speedup', m?.estimatedSpeedup ?? 1, '×', '#f59e0b'],
               ].map(([label, val, suffix, col]) => (
-                <div key={label} className="glass hud-corners p-5">
+                <div key={label} className="nv-panel p-5 relative">
+                  <div className="corner-square" />
                   <div className="text-4xl font-extrabold font-mono" style={{ color: col }}>
                     <CountUp value={val} decimals={suffix === '×' ? 2 : suffix === '%' ? 1 : 0} suffix={suffix} duration={1300} />
                   </div>
@@ -148,7 +148,6 @@ export default function PresenterMode({ analysis, code, onClose }) {
   const next = useCallback(() => setBeat((b) => Math.min(b + 1, beats.length - 1)), [beats.length])
   const prev = useCallback(() => setBeat((b) => Math.max(b - 1, 0)), [])
 
-  // Keyboard: space/→ next, ← prev, P pause, Esc exit.
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') { e.preventDefault(); onClose() }
@@ -160,7 +159,6 @@ export default function PresenterMode({ analysis, code, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [next, prev, onClose])
 
-  // Auto-advance.
   useEffect(() => {
     if (paused || !beats.length || beat >= beats.length - 1) return
     const t = setTimeout(next, BEAT_MS)
@@ -174,11 +172,11 @@ export default function PresenterMode({ analysis, code, onClose }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-sm flex flex-col hud-scanlines"
+      className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-sm flex flex-col hud-scanlines font-sans"
     >
       {/* Top bar */}
-      <div className="flex items-center px-8 py-5">
-        <span className="font-mono text-xs tracking-[0.3em] text-accent-light">PRESENTER MODE</span>
+      <div className="flex items-center px-8 py-5 border-b border-line bg-black">
+        <span className="font-mono text-xs tracking-[0.3em] text-nv font-bold">PRESENTER MODE</span>
         <span className="ml-4 font-mono text-xs text-gray-600">
           {String(beat + 1).padStart(2, '0')} / {String(Math.max(beats.length, 1)).padStart(2, '0')}
         </span>
@@ -209,7 +207,7 @@ export default function PresenterMode({ analysis, code, onClose }) {
       </div>
 
       {/* Caption + controls */}
-      <div className="px-8 pb-8 pt-4">
+      <div className="px-8 pb-8 pt-4 border-t border-line bg-black">
         <div className="max-w-5xl mx-auto">
           <motion.div
             key={`cap-${beat}`}
@@ -217,15 +215,15 @@ export default function PresenterMode({ analysis, code, onClose }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <h2 className="text-3xl md:text-4xl font-extrabold text-white">{b?.title || ''}</h2>
-            <p className="text-gray-400 mt-1.5">{b?.caption || ''}</p>
+            <h2 className="text-2xl md:text-3xl font-black uppercase text-white tracking-wide">{b?.title || ''}</h2>
+            <p className="text-mute text-xs uppercase mt-1.5 tracking-wider font-mono">{b?.caption || ''}</p>
           </motion.div>
 
           <div className="flex items-center gap-4 mt-5">
             <button onClick={prev} disabled={beat === 0} className="text-gray-500 hover:text-white disabled:opacity-30 transition-colors" aria-label="Previous beat">
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <button onClick={() => setPaused((p) => !p)} className="text-accent-light hover:text-white transition-colors" aria-label={paused ? 'Resume' : 'Pause'}>
+            <button onClick={() => setPaused((p) => !p)} className="text-nv hover:text-white transition-colors" aria-label={paused ? 'Resume' : 'Pause'}>
               {paused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
             </button>
             <button onClick={next} disabled={beat >= beats.length - 1} className="text-gray-500 hover:text-white disabled:opacity-30 transition-colors" aria-label="Next beat">
@@ -238,26 +236,26 @@ export default function PresenterMode({ analysis, code, onClose }) {
                 <button
                   key={i}
                   onClick={() => setBeat(i)}
-                  className="relative h-1.5 rounded-full overflow-hidden transition-all"
+                  className="relative h-1 rounded-sm overflow-hidden transition-all"
                   style={{ width: i === beat ? 56 : 20, background: 'rgba(255,255,255,0.12)' }}
                   aria-label={`Go to beat ${i + 1}`}
                 >
-                  {i < beat && <span className="absolute inset-0 bg-accent-light/70" />}
+                  {i < beat && <span className="absolute inset-0 bg-nv/70" />}
                   {i === beat && !paused && (
                     <motion.span
                       key={`prog-${beat}`}
-                      className="absolute inset-y-0 left-0 bg-accent-light"
+                      className="absolute inset-y-0 left-0 bg-nv"
                       initial={{ width: '0%' }}
                       animate={{ width: '100%' }}
                       transition={{ duration: BEAT_MS / 1000, ease: 'linear' }}
                     />
                   )}
-                  {i === beat && paused && <span className="absolute inset-y-0 left-0 w-1/2 bg-accent-light/60" />}
+                  {i === beat && paused && <span className="absolute inset-y-0 left-0 w-1/2 bg-nv/60" />}
                 </button>
               ))}
             </div>
 
-            <span className="ml-auto font-mono text-[10px] text-gray-600 hidden md:block">
+            <span className="ml-auto font-mono text-[10px] text-stone uppercase tracking-wider hidden md:block">
               SPACE next · ← back · P pause · ESC exit
             </span>
           </div>

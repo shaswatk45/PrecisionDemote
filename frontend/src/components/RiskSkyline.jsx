@@ -25,7 +25,7 @@ export default function RiskSkyline({ nodes = [], totalLines = 1, editorRef, hei
 
   return (
     <div
-      className="relative w-5 shrink-0 rounded-md bg-white/[0.03] border border-white/10 overflow-hidden"
+      className="relative w-5 shrink-0 rounded-sm bg-black border border-line overflow-hidden font-sans"
       style={{ height }}
       aria-label="Risk skyline — file-wide precision heatmap"
     >

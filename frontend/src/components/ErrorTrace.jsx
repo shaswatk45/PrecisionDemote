@@ -33,7 +33,7 @@ export default function ErrorTrace({ nodes = [], width = 640, height = 160 }) {
   if (samples.length === 0) return null
 
   return (
-    <div className="hud-scanlines rounded-lg border border-white/10 bg-black/40 p-2">
+    <div className="hud-scanlines rounded-sm border border-line bg-black p-2 font-sans">
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ maxHeight: height }}>
         {/* Grid */}
         {gridY.map((g) => {
@@ -53,13 +53,12 @@ export default function ErrorTrace({ nodes = [], width = 640, height = 160 }) {
           <motion.path
             d={path}
             fill="none"
-            stroke="#818cf8"
+            stroke="#76b900"
             strokeWidth="1.5"
             strokeLinejoin="round"
             initial={{ pathLength: 0 }}
             animate={{ pathLength: 1 }}
             transition={{ duration: 1.4, ease: 'easeInOut' }}
-            style={{ filter: 'drop-shadow(0 0 4px rgba(129,140,248,0.7))' }}
           />
         )}
 
@@ -69,7 +68,7 @@ export default function ErrorTrace({ nodes = [], width = 640, height = 160 }) {
           const col = REC_COLOR[rec]
           return (
             <motion.g key={`${p.n.name}-${i}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 + i * 0.06 }}>
-              <circle cx={p.x} cy={p.y} r="3.5" fill={col} style={{ filter: `drop-shadow(0 0 4px ${col})` }} />
+              <circle cx={p.x} cy={p.y} r="3" fill={col} />
               <text x={p.x} y={height - 8} textAnchor="middle" fontSize="9" fill="#6b7280" fontFamily="monospace">
                 {p.n.name.length > 6 ? p.n.name.slice(0, 5) + '…' : p.n.name}
               </text>
@@ -77,7 +76,7 @@ export default function ErrorTrace({ nodes = [], width = 640, height = 160 }) {
           )
         })}
 
-        <text x={pad.l} y={10} fontSize="9" fill="#6b7280" fontFamily="monospace" letterSpacing="1">
+        <text x={pad.l} y={10} fontSize="9" fill="#6b7280" fontFamily="monospace" letterSpacing="1" className="font-bold">
           REL. ERROR BOUND / VARIABLE
         </text>
       </svg>

@@ -12,22 +12,20 @@ const COLORS = {
   fp16: '#14b8a6',
   bf16: '#f59e0b',
   keep: '#f43f5e',
-  accent: '#6366f1',
+  accent: '#76b900',
 }
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="glass px-3 py-2 text-xs space-y-1">
-      {label && <p className="text-gray-400">{label}</p>}
+    <div className="nv-panel px-3 py-2 text-[11px] space-y-1 font-mono uppercase bg-black">
+      {label && <p className="text-mute">{label}</p>}
       {payload.map((p, i) => (
         <p key={i} style={{ color: p.color || p.fill }}>{p.name}: <strong>{p.value}</strong></p>
       ))}
     </div>
   )
 }
-
-const fmtErr = (e) => (e > 0 ? `${(e * 100).toFixed(3)}%` : '0%')
 
 export default function MetricsPanel({ metrics, analysis }) {
   if (!metrics) return null
@@ -53,19 +51,19 @@ export default function MetricsPanel({ metrics, analysis }) {
   ]
 
   const stats = [
-    ['Est. speedup', <CountUp key="s" value={estimatedSpeedup} decimals={2} suffix="×" duration={1100} />, 'bandwidth-bound roofline', 'text-accent-light'],
+    ['Est. speedup', <CountUp key="s" value={estimatedSpeedup} decimals={2} suffix="×" duration={1100} />, 'bandwidth-bound roofline', 'text-nv'],
     ['Memory saved', <CountUp key="m" value={memorySavedPercent} decimals={1} suffix="%" duration={1100} />, `${bytesSaved} bytes/invocation`, 'text-safe'],
     ['Max rel. error', <CountUp key="e" value={maxErrorBound * 100} decimals={3} suffix="%" duration={1100} />, 'worst-case demoted var', 'text-warn'],
-    ['Demotion rate', <CountUp key="d" value={demotionRate} decimals={1} suffix="%" duration={1100} />, `${fp16Count + bf16Count}/${totalFloatVars} narrowed`, 'text-accent-light'],
+    ['Demotion rate', <CountUp key="d" value={demotionRate} decimals={1} suffix="%" duration={1100} />, `${fp16Count + bf16Count}/${totalFloatVars} narrowed`, 'text-nv'],
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       {/* Hero row: gauge + headline stats */}
       <div className="grid lg:grid-cols-[auto_1fr] gap-6 items-center">
-        <div className="glass hud-corners p-6 flex flex-col items-center gap-2">
+        <div className="nv-panel hud-corners p-6 flex flex-col items-center gap-2">
           <ScoreGauge value={avgSafetyScore} sublabel="avg score" />
-          <p className="text-xs text-gray-500 text-center max-w-[10rem]">Mean demotion-safety confidence across all float variables</p>
+          <p className="text-[10px] text-mute uppercase font-mono text-center max-w-[10rem] tracking-wider mt-1">Mean demotion-safety confidence across all float variables</p>
         </div>
         <div className="grid grid-cols-2 gap-4">
           {stats.map(([label, value, sub, color], i) => (
@@ -76,9 +74,9 @@ export default function MetricsPanel({ metrics, analysis }) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.06 }}
             >
-              <span className="section-title mb-0">{label}</span>
-              <span className={`text-3xl font-extrabold font-mono ${color}`}>{value}</span>
-              <span className="text-xs text-gray-500">{sub}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-nv mb-1">{label}</span>
+              <span className={`text-2xl font-black font-mono tracking-tight ${color}`}>{value}</span>
+              <span className="text-[10px] text-mute uppercase font-mono tracking-wide mt-1">{sub}</span>
             </motion.div>
           ))}
         </div>
@@ -86,19 +84,22 @@ export default function MetricsPanel({ metrics, analysis }) {
 
       {/* The physical memory story + the error-bound oscilloscope */}
       <div className="grid md:grid-cols-2 gap-6">
-        <div className="glass hud-corners p-6">
-          <p className="section-title">Bit-level anatomy</p>
+        <div className="nv-panel hud-corners p-6">
+          <div className="corner-square" />
+          <p className="text-xs font-bold uppercase tracking-widest text-nv mb-4">Bit-level anatomy</p>
           <MemoryShrink />
         </div>
-        <div className="glass hud-corners p-6">
-          <p className="section-title">Error-bound trace</p>
+        <div className="nv-panel hud-corners p-6">
+          <div className="corner-square" />
+          <p className="text-xs font-bold uppercase tracking-widest text-nv mb-4">Error-bound trace</p>
           <ErrorTrace nodes={allNodes} />
         </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
-        <div className="glass p-6">
-          <p className="section-title">Target type breakdown</p>
+        <div className="nv-panel p-6 relative">
+          <div className="corner-square" />
+          <p className="text-xs font-bold uppercase tracking-widest text-nv mb-4">Target type breakdown</p>
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={4} dataKey="value"
@@ -110,14 +111,15 @@ export default function MetricsPanel({ metrics, analysis }) {
           </ResponsiveContainer>
         </div>
 
-        <div className="glass p-6">
-          <p className="section-title">Variables by target</p>
+        <div className="nv-panel p-6 relative">
+          <div className="corner-square" />
+          <p className="text-xs font-bold uppercase tracking-widest text-nv mb-4">Variables by target</p>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={barData} margin={{ top: 8 }}>
-              <XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 11 }} />
-              <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} allowDecimals={false} />
+              <XAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10, fontFamily: 'monospace' }} />
+              <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10, fontFamily: 'monospace' }} allowDecimals={false} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+              <Bar dataKey="value" radius={[2, 2, 0, 0]}>
                 {barData.map((entry) => <Cell key={entry.name} fill={entry.fill} />)}
               </Bar>
             </BarChart>
@@ -125,18 +127,19 @@ export default function MetricsPanel({ metrics, analysis }) {
         </div>
       </div>
 
-      <div className="glass p-6 overflow-auto">
-        <p className="section-title">FP32 vs FP16 vs BF16</p>
-        <table className="w-full text-sm text-left">
+      <div className="nv-panel p-6 overflow-auto relative">
+        <div className="corner-square" />
+        <p className="text-xs font-bold uppercase tracking-widest text-nv mb-4">FP32 vs FP16 vs BF16</p>
+        <table className="w-full text-xs text-left uppercase font-mono">
           <thead>
-            <tr className="border-b border-white/10 text-gray-400 text-xs uppercase tracking-wider">
+            <tr className="border-b border-line text-stone tracking-wider font-bold">
               <th className="pb-3 pr-6">Property</th>
               <th className="pb-3 pr-6 text-unsafe">FP32</th>
               <th className="pb-3 pr-6 text-safe">FP16</th>
               <th className="pb-3 text-warn">BF16</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody className="divide-y divide-line">
             {[
               ['Bit width', '32', '16', '16'],
               ['Exponent bits', '8', '5', '8'],
@@ -146,10 +149,10 @@ export default function MetricsPanel({ metrics, analysis }) {
               ['Best for', 'baseline', 'precision + range ok', 'wide dynamic range'],
             ].map(([prop, fp32, fp16, bf16]) => (
               <tr key={prop} className="hover:bg-white/5 transition-colors">
-                <td className="py-2.5 pr-6 text-gray-300 font-medium">{prop}</td>
-                <td className="py-2.5 pr-6 text-unsafe font-mono">{fp32}</td>
-                <td className="py-2.5 pr-6 text-safe font-mono">{fp16}</td>
-                <td className="py-2.5 text-warn font-mono">{bf16}</td>
+                <td className="py-2.5 pr-6 text-white font-bold">{prop}</td>
+                <td className="py-2.5 pr-6 text-unsafe font-bold">{fp32}</td>
+                <td className="py-2.5 pr-6 text-safe font-bold">{fp16}</td>
+                <td className="py-2.5 text-warn font-bold">{bf16}</td>
               </tr>
             ))}
           </tbody>

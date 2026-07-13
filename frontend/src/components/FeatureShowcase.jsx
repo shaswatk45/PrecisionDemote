@@ -2,8 +2,6 @@ import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { RulerCarousel } from './RulerCarousel'
 
-// Every headline capability, in one scrollable ruler. The carousel drives the
-// detail card below it — spin to any feature and read exactly what it does.
 const FEATURES = [
   {
     id: 1, title: 'AST ENGINE', tag: 'Engine',
@@ -63,33 +61,36 @@ export default function FeatureShowcase() {
   const f = FEATURES[active] || FEATURES[0]
 
   return (
-    <section id="features" className="space-y-8">
+    <section id="features" className="space-y-8 py-8 border-t border-line">
       <div className="text-center space-y-2">
-        <p className="section-title mb-0">Everything it does</p>
-        <h2 className="text-3xl font-bold">Ten capabilities, one ruler</h2>
-        <p className="text-sm text-gray-500">Spin the ruler — click a label, drag, or use ← / → — to explore each feature.</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-nv">System Capabilities</p>
+        <h2 className="text-2xl font-black uppercase tracking-wider text-white">Ten capabilities, one ruler</h2>
+        <p className="text-xs text-mute uppercase tracking-wider">Explore each technical feature of the static analysis pass</p>
       </div>
 
-      <div className="glass py-10 overflow-hidden">
+      <div className="nv-panel py-10 overflow-hidden relative">
+        <div className="corner-square" />
         <RulerCarousel
           originalItems={FEATURES.map((x) => ({ id: x.id, title: x.title }))}
           onActiveChange={onActiveChange}
           initialIndex={4}
         />
 
-        <div className="max-w-2xl mx-auto px-6 mt-8 min-h-[150px]">
+        <div className="max-w-2xl mx-auto px-6 mt-8 min-h-[140px]">
           <motion.div
             key={active}
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25 }}
-            className="text-center space-y-3"
+            transition={{ duration: 0.2 }}
+            className="text-center space-y-4"
           >
-            <span className="inline-block text-xs font-semibold uppercase tracking-widest text-accent-light border border-accent/30 rounded-full px-3 py-1">
-              {f.tag}
-            </span>
-            <p className="text-gray-300 leading-relaxed">{f.desc}</p>
-            <p className="font-mono text-xs text-safe">{f.metric}</p>
+            <div>
+              <span className="inline-block text-xs font-bold uppercase tracking-widest text-nv border border-nv/30 bg-nv/5 rounded-sm px-3 py-1">
+                {f.tag}
+              </span>
+            </div>
+            <p className="text-sm text-body leading-relaxed max-w-xl mx-auto">{f.desc}</p>
+            <p className="font-mono text-xs text-safe uppercase tracking-wider">{f.metric}</p>
           </motion.div>
         </div>
       </div>

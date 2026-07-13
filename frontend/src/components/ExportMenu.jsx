@@ -55,15 +55,15 @@ export default function ExportMenu({ analysis, code }) {
   ]
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative font-sans" ref={ref}>
       <button
         onClick={() => setOpen(o => !o)}
-        className="btn-ghost text-sm flex items-center gap-2"
+        className="btn-ghost text-xs px-4 py-2 flex items-center gap-2"
         aria-haspopup="true"
         aria-expanded={open}
       >
         Export
-        <span className={`transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
+        <span className={`transition-transform duration-150 ${open ? 'rotate-180' : ''}`}>▼</span>
       </button>
       <AnimatePresence>
         {open && (
@@ -72,16 +72,17 @@ export default function ExportMenu({ analysis, code }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-72 glass border border-white/15 rounded-xl overflow-hidden z-50 shadow-2xl"
+            className="absolute right-0 mt-2 w-72 nv-panel overflow-hidden z-50 shadow-nv-glow bg-black"
           >
+            <div className="corner-square" />
             {items.map(([label, sub, fn]) => (
               <button
                 key={label}
                 onClick={fn}
-                className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
+                className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-b border-line last:border-0"
               >
-                <div className="text-sm text-white font-medium">{label}</div>
-                <div className="text-xs text-gray-500">{sub}</div>
+                <div className="text-xs text-white font-bold uppercase tracking-wider">{label}</div>
+                <div className="text-[11px] text-mute uppercase font-mono mt-0.5">{sub}</div>
               </button>
             ))}
           </motion.div>
