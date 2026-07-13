@@ -201,10 +201,11 @@ export default function AnalysisPage() {
     : health.toolReady ? 'clang' : 'fallback'
   const engineMeta = {
     boot:     { color: '#6b7280', label: 'LINKING…' },
-    offline:  { color: '#f43f5e', label: 'ENGINE OFFLINE' },
+    offline:  { color: '#f59e0b', label: 'BROWSER-FALLBACK · ONLINE' },
     clang:    { color: '#76b900', label: 'CLANG-AST · ONLINE' },
     fallback: { color: '#f59e0b', label: 'JS-FALLBACK · ONLINE' },
   }[engine]
+
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-10 space-y-8 font-sans">
