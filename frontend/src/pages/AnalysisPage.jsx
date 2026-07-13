@@ -125,7 +125,11 @@ export default function AnalysisPage() {
       setActiveTab('annotated')
       if (!opts.silent) toast.success('Analysis complete')
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Backend error. Is the server running?')
+      const rawError = err.response?.data?.error
+      const errorMsg = typeof rawError === 'object' && rawError
+        ? (rawError.message || JSON.stringify(rawError))
+        : (rawError || err.message || 'Backend error. Is the server running?')
+      toast.error(errorMsg)
     } finally {
       setLoading(false)
     }
